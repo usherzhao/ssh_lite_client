@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>SSH Terminal</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="../node_modules/xterm/css/xterm.css" />
+  <style>
+    body { display: flex; flex-direction: column; height: 100vh; padding-top: 32px; overflow: hidden; }
+    .detach-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 14px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px; color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .detach-title { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-primary); }
+    .term-full { flex: 1; background: #000; overflow: hidden; }
+  </style>
+</head>
+<body>
+  <div class="detach-bar">
+    <div class="detach-title">
+      <div class="tab-dot connected" id="status-dot"></div>
+      <span id="win-title">SSH Terminal</span>
+    </div>
+    <div style="display:flex;gap:6px">
+      <span id="conn-info" style="color:var(--text-muted)"></span>
+    </div>
+  </div>
+  <div class="term-full" id="terminal-container"></div>
+
+  <script src="../node_modules/xterm/lib/xterm.js"></script>
+  <script src="../node_modules/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+  <script src="../node_modules/xterm-addon-web-links/lib/xterm-addon-web-links.js"></script>
+  <script>
+    let term, fitAddon, sessionId, config;
+
+    function initTerminal(data) {
+      sessionId = data.sessionId;
+      config = data.config;
+
+      document.getElementById('win-title').textContent =
+        config ? `${config.name || config.host}` : 'SSH Terminal';
+      document.getElementById('conn-info').textContent =
+        config ? `${config.username}@${config.host}:${config.port || 22}` : '';
+
+      const container = document.getElementById('terminal-container');
+
+      if (typeof Terminal === 'undefined') {
+        container.innerHTML = '<div style="color:#ef4444;padding:20px">xterm.js 加载失败，请重新安装依赖</div>';
+        return;
+      }
+
+      term = new Terminal({
+        theme: {
+          background: '#0d1117', foreground: '#e2e8f0',
+          cursor: '#3b82f6', cursorAccent: '#0d1117',
+          black:'#1a1a2e', red:'#ef4444', green:'#22c55e', yellow:'#f59e0b',
+          blue:'#3b82f6', magenta:'#a855f7', cyan:'#06b6d4', white:'#e2e8f0',
+          brightBlack:'#4b5563', brightRed:'#f87171', brightGreen:'#4ade80',
+          brightYellow:'#fbbf24', brightBlue:'#60a5fa', brightMagenta:'#c084fc',
+          brightCyan:'#22d3ee', brightWhite:'#f9fafb'
+        },
+        fontFamily: '"Cascadia Code","Fira Code","JetBrains Mono",Consolas,monospace',
+        fontSize: 14, lineHeight: 1.3,
+        cursorBlink: true, cursorStyle: 'block', scrollback: 5000
+      });
+
+      fitAddon = new FitAddon.FitAddon();
+      term.loadAddon(fitAddon);
+      if (typeof WebLinksAddon !== 'undefined') {
+        term.loadAddon(new WebLinksAddon.WebLinksAddon());
+      }
+
+      term.open(container);
+      setTimeout(() => fitAddon.fit(), 30);
+
+      // 右键粘贴：有选中文字则复制，否则粘贴剪贴板
+      container.addEventListener('contextmenu', async (e) => {
+        e.preventDefault();
+        const selection = term.getSelection();
+        if (selection) {
+          await navigator.clipboard.writeText(selection).catch(() => {});
+          term.clearSelection();
+        } else {
+          const text = await navigator.clipboard.readText().catch(() => '');
+          if (text) window.sshAPI.sendInput(sessionId, text);
+        }
+      });
+
+      term.onData(d => window.sshAPI.sendInput(sessionId, d));
+
+      window.sshAPI.onData(sessionId, (d) => term.write(d));
+      window.sshAPI.onClose(sessionId, () => {
+        document.getElementById('status-dot').classList.remove('connected');
+        term.write('\r\n\x1b[31m[连接已断开]\x1b[0m\r\n');
+      });
+
+      // 窗口大小响应
+      new ResizeObserver(() => {
+        try {
+          fitAddon.fit();
+          window.sshAPI.resize(sessionId, term.cols, term.rows);
+        } catch(e) {}
+      }).observe(container);
+
+      setTimeout(() => {
+        fitAddon.fit();
+        window.sshAPI.resize(sessionId, term.cols, term.rows);
+      }, 100);
+    }
+
+    // 等待主进程发送初始化数据
+    if (window.sshAPI) {
+      window.sshAPI.onInitTerminal((data) => {
+        initTerminal(data);
+      });
+    }
+
+    // 如果没有收到 init 事件（直接打开），显示提示
+    setTimeout(() => {
+      if (!sessionId) {
+        document.getElementById('terminal-container').innerHTML =
+          '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);flex-direction:column;gap:12px">' +
+          '<div style="font-size:32px">🖥</div><div>请从主窗口打开终端会话</div></div>';
+      }
+    }, 2000);
+  </script>
+</body>
+</html>
