@@ -61,6 +61,7 @@
           <button class="btn-icon" id="btn-split-h" title="分屏显示">⬛</button>
           <button class="btn-icon" id="btn-multi-win" title="新建窗口">🗗</button>
           <button class="btn-icon" id="btn-term-settings" title="终端外观设置">⚙</button>
+          <button class="btn-icon" id="btn-cmd-input" title="指令发送窗口">⌨</button>
         </div>
       </div>
 
@@ -75,6 +76,30 @@
           </div>
         </div>
         <div class="split-container" id="split-container" style="display:none;"></div>
+      </div>
+
+      <!-- 指令发送窗口 -->
+      <div class="cmd-input-panel" id="cmd-input-panel" style="display:none;">
+        <div class="cmd-input-header">
+          <div class="cmd-input-title">
+            <span>⌨</span>
+            <span>指令发送</span>
+            <span class="cmd-target-label" id="cmd-target-label"></span>
+          </div>
+          <div class="cmd-input-actions">
+            <button class="btn-icon cmd-btn" id="btn-cmd-clear-history" title="清空历史">🗑</button>
+            <button class="btn-icon cmd-btn" id="btn-cmd-clear" title="清空输入">⊘</button>
+            <button class="btn-icon cmd-btn" id="btn-cmd-send" title="发送 (Enter)">▶</button>
+            <button class="btn-icon cmd-btn" id="btn-cmd-toggle" title="折叠/展开">▼</button>
+            <button class="btn-icon cmd-btn" id="btn-cmd-close" title="关闭">✕</button>
+          </div>
+        </div>
+        <div class="cmd-history-list" id="cmd-history-list">
+          <div class="cmd-history-empty">暂无历史指令</div>
+        </div>
+        <div class="cmd-input-body" id="cmd-input-body">
+          <textarea id="cmd-input-text" placeholder="输入指令，Enter 发送，Shift+Enter 换行..." rows="2"></textarea>
+        </div>
       </div>
 
       <!-- SFTP 面板 -->

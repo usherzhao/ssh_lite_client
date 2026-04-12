@@ -35,6 +35,10 @@ const App = {
   currentEditId: null,
   currentEditQcmdId: null,
   quickCmdCollapsed: false,
+  cmdInputVisible: false,
+  cmdInputCollapsed: false,
+  cmdHistory: [],
+  cmdHistoryIndex: -1,
   collapsedGroups: new Set(),
   connSortMode: 'custom',  // custom | name | host | time
 
@@ -258,6 +262,7 @@ const App = {
     this.activeTabId = tabId;
     this.renderTabs();
     this.renderTerminalArea();
+    if (this.cmdInputVisible) this.updateCmdTargetLabel();
     // 切换 SFTP 面板到对应 tab
     const tab = this.tabs.find(t => t.id === tabId);
     if (tab && tab.connected) {
@@ -486,7 +491,10 @@ const App = {
       });
     }
 
-    term.onData(data => window.sshAPI.sendInput(tab.sessionId, data));
+    term.onData(data => {
+      window.sshAPI.sendInput(tab.sessionId, data);
+      this.captureTerminalInput(tab, data);
+    });
 
     const removeData = window.sshAPI.onData(tab.sessionId, (data) => {
       // 编码转换支持
@@ -577,6 +585,158 @@ const App = {
     }
     window.sshAPI.sendInput(tab.sessionId, cmd + '\n');
     if (tab.terminal) tab.terminal.focus();
+  },
+
+  // ===== 指令发送窗口 =====
+  toggleCmdInputPanel() {
+    this.cmdInputVisible = !this.cmdInputVisible;
+    const panel = document.getElementById('cmd-input-panel');
+    const btn = document.getElementById('btn-cmd-input');
+    if (this.cmdInputVisible) {
+      panel.style.display = 'flex';
+      btn.style.background = 'var(--accent)';
+      btn.style.color = '#fff';
+      this.updateCmdTargetLabel();
+      this.renderCmdHistoryList();
+      setTimeout(() => document.getElementById('cmd-input-text').focus(), 50);
+    } else {
+      panel.style.display = 'none';
+      btn.style.background = '';
+      btn.style.color = '';
+    }
+  },
+
+  updateCmdTargetLabel() {
+    const label = document.getElementById('cmd-target-label');
+    const tab = this.tabs.find(t => t.id === this.activeTabId);
+    if (tab && tab.connected) {
+      label.textContent = '→ ' + (tab.title || tab.config.host);
+    } else {
+      label.textContent = '→ 未连接';
+    }
+  },
+
+  sendCmdInput() {
+    const textarea = document.getElementById('cmd-input-text');
+    const cmd = textarea.value.trim();
+    if (!cmd) return;
+
+    const tab = this.tabs.find(t => t.id === this.activeTabId);
+    if (!tab || !tab.connected) {
+      alert('请先连接到一个服务器');
+      return;
+    }
+
+    const now = new Date();
+    const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
+                    now.getMinutes().toString().padStart(2, '0') + ':' +
+                    now.getSeconds().toString().padStart(2, '0');
+    this.cmdHistory.push({ cmd, time: timeStr, source: 'panel' });
+    if (this.cmdHistory.length > 200) this.cmdHistory.shift();
+
+    const lines = cmd.split('\n');
+    lines.forEach(line => {
+      window.sshAPI.sendInput(tab.sessionId, line + '\n');
+    });
+
+    textarea.value = '';
+    textarea.style.height = 'auto';
+    this.renderCmdHistoryList();
+    if (tab.terminal) tab.terminal.focus();
+  },
+
+  renderCmdHistoryList() {
+    const list = document.getElementById('cmd-history-list');
+    list.innerHTML = '';
+    if (this.cmdHistory.length === 0) {
+      list.innerHTML = '<div class="cmd-history-empty">暂无历史指令</div>';
+      return;
+    }
+    this.cmdHistory.forEach((entry, index) => {
+      const item = document.createElement('div');
+      item.className = 'cmd-history-item';
+      item.dataset.index = index;
+      const displayCmd = entry.cmd.replace(/\n/g, ' ↵ ');
+      const sourceIcon = entry.source === 'terminal' ? '⌨' : '▶';
+      item.innerHTML = `
+        <span class="cmd-history-item-index">${index + 1}</span>
+        <span class="cmd-history-item-source" title="${entry.source === 'terminal' ? '终端输入' : '指令窗口'}">${sourceIcon}</span>
+        <span class="cmd-history-item-text" title="${escapeHtml(entry.cmd)}">${escapeHtml(displayCmd)}</span>
+        <span class="cmd-history-item-time">${entry.time}</span>
+        <span class="cmd-history-item-del" title="删除">✕</span>
+      `;
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.cmd-history-item-del')) {
+          e.stopPropagation();
+          this.cmdHistory.splice(index, 1);
+          this.renderCmdHistoryList();
+          return;
+        }
+        const textarea = document.getElementById('cmd-input-text');
+        textarea.value = entry.cmd;
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+        textarea.focus();
+      });
+      list.appendChild(item);
+    });
+    list.scrollTop = list.scrollHeight;
+  },
+
+  clearCmdHistory() {
+    if (this.cmdHistory.length === 0) return;
+    if (!confirm('清空所有历史指令？')) return;
+    this.cmdHistory = [];
+    this.renderCmdHistoryList();
+  },
+
+  toggleCmdInputCollapse() {
+    this.cmdInputCollapsed = !this.cmdInputCollapsed;
+    const panel = document.getElementById('cmd-input-panel');
+    const btn = document.getElementById('btn-cmd-toggle');
+    if (this.cmdInputCollapsed) {
+      panel.classList.add('collapsed');
+      btn.textContent = '▲';
+    } else {
+      panel.classList.remove('collapsed');
+      btn.textContent = '▼';
+    }
+  },
+
+  closeCmdInput() {
+    this.cmdInputVisible = false;
+    const panel = document.getElementById('cmd-input-panel');
+    const btn = document.getElementById('btn-cmd-input');
+    panel.style.display = 'none';
+    btn.style.background = '';
+    btn.style.color = '';
+  },
+
+  captureTerminalInput(tab, data) {
+    if (!tab._currentLine) tab._currentLine = '';
+    if (data === '\r') {
+      const line = tab._currentLine.trim();
+      if (line) {
+        const now = new Date();
+        const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
+                        now.getMinutes().toString().padStart(2, '0') + ':' +
+                        now.getSeconds().toString().padStart(2, '0');
+        this.cmdHistory.push({ cmd: line, time: timeStr, source: 'terminal' });
+        if (this.cmdHistory.length > 200) this.cmdHistory.shift();
+        if (this.cmdInputVisible) this.renderCmdHistoryList();
+      }
+      tab._currentLine = '';
+    } else if (data === '\x7f' || data === '\b') {
+      tab._currentLine = tab._currentLine.slice(0, -1);
+    } else if (data === '\x03') {
+      tab._currentLine = '';
+    } else if (data.length === 1 && data.charCodeAt(0) >= 32) {
+      tab._currentLine += data;
+    } else if (data === '\x1b[A' || data === '\x1b[B' || data === '\x1b[C' || data === '\x1b[D') {
+      // arrow keys - ignore
+    } else if (data.startsWith('\x1b')) {
+      // other escape sequences - ignore
+    }
   },
 
   // ===== 分屏 =====
@@ -1636,6 +1796,28 @@ const App = {
     document.getElementById('btn-split-h').addEventListener('click', () => this.toggleSplit());
     document.getElementById('btn-multi-win').addEventListener('click', () => this.openNewWindow());
     document.getElementById('btn-term-settings').addEventListener('click', () => this.openTermSettings());
+    document.getElementById('btn-cmd-input').addEventListener('click', () => this.toggleCmdInputPanel());
+
+    // 指令发送窗口事件
+    document.getElementById('btn-cmd-send').addEventListener('click', () => this.sendCmdInput());
+    document.getElementById('btn-cmd-clear').addEventListener('click', () => {
+      document.getElementById('cmd-input-text').value = '';
+      document.getElementById('cmd-input-text').style.height = 'auto';
+    });
+    document.getElementById('btn-cmd-clear-history').addEventListener('click', () => this.clearCmdHistory());
+    document.getElementById('btn-cmd-toggle').addEventListener('click', () => this.toggleCmdInputCollapse());
+    document.getElementById('btn-cmd-close').addEventListener('click', () => this.closeCmdInput());
+    document.getElementById('cmd-input-text').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        this.sendCmdInput();
+      }
+    });
+    document.getElementById('cmd-input-text').addEventListener('input', () => {
+      const ta = document.getElementById('cmd-input-text');
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+    });
 
     // Enter 键保存连接
     document.getElementById('modal-conn').addEventListener('keydown', (e) => {
