@@ -1710,24 +1710,78 @@ const App = {
       e.preventDefault();
       panel.classList.remove('drag-over');
       if (!this.sftp.sessionId) return;
-      const files = Array.from(e.dataTransfer.files);
-      if (files.length === 0) return;
-
+      
+      const items = Array.from(e.dataTransfer.items);
+      if (items.length === 0) return;
+      
       this.sftpShowLoading(true);
       let failCount = 0;
-      for (const file of files) {
-        const remotePath = this.sftpJoin(this.sftp.currentPath, file.name);
-        const r = await window.sshAPI.sftpUpload(this.sftp.sessionId, file.path, remotePath);
-        if (!r.success) failCount++;
+      
+      // 处理所有拖拽项（文件和文件夹）
+      for (const item of items) {
+        if (item.kind === 'file') {
+          const entry = item.webkitGetAsEntry();
+          if (entry) {
+            const result = await this.sftpUploadEntry(entry, this.sftp.currentPath);
+            if (!result.success) failCount++;
+          }
+        }
       }
+      
       this.sftpShowLoading(false);
       if (failCount > 0) {
-        this.sftpShowError(`${failCount} 个文件上传失败`);
+        this.sftpShowError(`${failCount} 个项目上传失败`);
         setTimeout(() => this.sftpNavigateTo(this.sftp.currentPath), 2000);
       } else {
         await this.sftpNavigateTo(this.sftp.currentPath);
       }
     });
+  },
+  
+  // 上传文件或文件夹（递归）
+  async sftpUploadEntry(entry, remoteBasePath) {
+    if (entry.isFile) {
+      // 上传单个文件
+      return new Promise((resolve) => {
+        entry.file(async (file) => {
+          const remotePath = this.sftpJoin(remoteBasePath, entry.name);
+          const r = await window.sshAPI.sftpUpload(this.sftp.sessionId, file.path, remotePath);
+          resolve(r);
+        }, () => {
+          resolve({ success: false, error: '无法读取文件' });
+        });
+      });
+    } else if (entry.isDirectory) {
+      // 创建远程目录
+      const remoteDirPath = this.sftpJoin(remoteBasePath, entry.name);
+      const mkdirResult = await window.sshAPI.sftpMkdir(this.sftp.sessionId, remoteDirPath);
+      if (!mkdirResult.success) {
+        return mkdirResult;
+      }
+      
+      // 递归上传目录内容
+      let failCount = 0;
+      const reader = entry.createReader();
+      
+      async function readEntries() {
+        const entries = await new Promise((resolve) => {
+          reader.readEntries(resolve);
+        });
+        
+        for (const subEntry of entries) {
+          const result = await this.sftpUploadEntry(subEntry, remoteDirPath);
+          if (!result.success) failCount++;
+        }
+        
+        if (entries.length > 0) {
+          await readEntries.call(this);
+        }
+      }
+      
+      await readEntries.call(this);
+      return { success: failCount === 0, error: failCount > 0 ? `${failCount} 个文件上传失败` : null };
+    }
+    return { success: false, error: '未知项目类型' };
   },
 
   // ===== 事件绑定 =====
