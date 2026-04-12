@@ -133,6 +133,12 @@ npm run build:dir
 - **默认**：[sql.js](https://github.com/sql-js/sql.js)（纯 JS 实现的 SQLite，数据库文件存于 Electron `userData` 目录，无需安装额外驱动）
 - **可选**：MySQL（在应用设置界面配置连接信息后切换，支持与 SQLite 双向同步）
 
+### 加密密钥状态
+
+数据库设置页面会显示加密密钥的当前状态：
+- **已设置环境变量**：使用 `SSH_CLIENT_ENCRYPT_KEY` 环境变量中指定的密钥
+- **未设置环境变量**：使用内置默认密钥
+
 ### 建表语句
 
 #### SQLite
@@ -224,7 +230,15 @@ CREATE TABLE IF NOT EXISTS quick_commands (
 | 编码 | 密文以 `hex` 编码；存储格式：`<IV_hex>:<ciphertext_hex>` |
 | Node.js API | `crypto.createCipheriv` / `crypto.createDecipheriv` |
 
-> **安全提示**：当前密钥硬编码在源码中，适用于本地单机场景。生产/团队环境建议通过环境变量或系统密钥链注入密钥。
+### 密钥管理
+
+- **默认密钥**：内置 32 字节固定密钥（适用于本地单机场景）
+- **环境变量**：支持通过 `SSH_CLIENT_ENCRYPT_KEY` 环境变量注入自定义密钥
+- **状态显示**：数据库设置页面会显示当前密钥来源（环境变量 / 默认）
+
+> **安全提示**：生产/团队环境建议通过环境变量注入密钥，避免源码泄露导致密钥暴露。
+
+> **注意**：修改密钥后，已存储的加密数据将无法解密，请谨慎操作。
 
 ---
 
@@ -262,6 +276,7 @@ CREATE TABLE IF NOT EXISTS quick_commands (
 | `get-quick-commands` | R→M | 读取快捷指令 |
 | `save-quick-command` | R→M | 保存快捷指令 |
 | `delete-quick-command` | R→M | 删除快捷指令 |
+| `get-encrypt-key-status` | R→M | 获取加密密钥状态（环境变量是否设置） |
 
 > R→M：渲染进程发起，主进程响应（`ipcRenderer.invoke` / `ipcMain.handle`）  
 > M→R：主进程推送（`webContents.send` / `ipcRenderer.on`）
