@@ -1056,6 +1056,21 @@ const App = {
       document.getElementById('mysql-pass').value = '';
       document.getElementById('mysql-db').value = cfg.mysqlConfig.database || 'ssh_client';
     }
+    
+    // 获取加密密钥状态
+    const keyStatus = await window.sshAPI.getEncryptKeyStatus();
+    const statusEl = document.getElementById('db-encrypt-key-status');
+    const infoEl = document.getElementById('db-encrypt-key-info');
+    if (keyStatus.hasEnvKey) {
+      statusEl.textContent = '已设置环境变量';
+      statusEl.style.color = 'var(--text-primary)';
+      infoEl.textContent = '';
+    } else {
+      statusEl.textContent = '未设置环境变量';
+      statusEl.style.color = 'var(--text-muted)';
+      infoEl.textContent = `请设置环境变量: ${keyStatus.envKey}`;
+    }
+    
     document.getElementById('db-overlay').style.display = 'flex';
   },
 

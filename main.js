@@ -152,6 +152,14 @@ ipcMain.handle('show-open-dialog', async (event, opts) => {
   return dialog.showOpenDialog(win, opts);
 });
 
+ipcMain.handle('get-encrypt-key-status', () => {
+  const hasEnvKey = !!process.env.SSH_CLIENT_ENCRYPT_KEY;
+  return {
+    hasEnvKey,
+    envKey: 'SSH_CLIENT_ENCRYPT_KEY'
+  };
+});
+
 // ===================== SSH 连接 IPC =====================
 
 ipcMain.handle('ssh-connect', async (event, { sessionId, config }) => {

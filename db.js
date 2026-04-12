@@ -9,7 +9,7 @@ const crypto = require('crypto');
 const { app } = require('electron');
 
 // ===================== 加密工具 =====================
-const CIPHER_KEY = 'ssh-client-aes256-secret-key-32b!'; // 32字节
+const CIPHER_KEY = process.env.SSH_CLIENT_ENCRYPT_KEY || 'ssh-client-aes256-secret-key-32b!'; // 32字节
 const CIPHER_IV_LEN = 16;
 
 function encrypt(text) {

@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('sshAPI', {
   importData: (filePath) => ipcRenderer.invoke('import-data', filePath),
   showSaveDialog: (opts) => ipcRenderer.invoke('show-save-dialog', opts),
   showOpenDialog: (opts) => ipcRenderer.invoke('show-open-dialog', opts),
+  getEncryptKeyStatus: () => ipcRenderer.invoke('get-encrypt-key-status'),
 
   // SSH 操作
   connect: (sessionId, config) => ipcRenderer.invoke('ssh-connect', { sessionId, config }),
