@@ -111,7 +111,10 @@
             <span class="sftp-host-label" id="sftp-host-label"></span>
           </div>
           <div class="sftp-panel-actions">
-            <span class="sftp-path-display" id="sftp-path-display">/</span>
+            <div class="sftp-path-input-container">
+              <input type="text" class="sftp-path-input" id="sftp-path-input" value="/" placeholder="输入路径..." />
+              <button class="btn-icon sftp-path-btn" id="btn-sftp-copy-path" title="复制路径">📋</button>
+            </div>
             <button class="btn-icon sftp-btn" id="btn-sftp-home" title="根目录">⌂</button>
             <button class="btn-icon sftp-btn" id="btn-sftp-up" title="上级目录">↑</button>
             <button class="btn-icon sftp-btn" id="btn-sftp-refresh" title="刷新">↻</button>

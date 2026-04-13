@@ -1032,6 +1032,54 @@ body {
   pointer-events: none;
 }
 
+/* SFTP 路径输入 */
+.sftp-path-input-container {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.sftp-path-input {
+  flex: 1;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: var(--radius) 0 0 var(--radius);
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  outline: none;
+  transition: all .2s;
+}
+
+.sftp-path-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(59,130,246,.1);
+}
+
+.sftp-path-btn {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all .2s;
+  font-size: 10px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sftp-path-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .sftp-body {
   flex: 1;
   overflow: hidden;

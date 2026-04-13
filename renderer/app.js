@@ -724,6 +724,19 @@ const App = {
         this.cmdHistory.push({ cmd: line, time: timeStr, source: 'terminal' });
         if (this.cmdHistory.length > 200) this.cmdHistory.shift();
         if (this.cmdInputVisible) this.renderCmdHistoryList();
+        
+        // 检测 cd 命令并同步 SFTP 目录
+        if (line.startsWith('cd ')) {
+          const path = line.substring(3).trim();
+          if (path) {
+            this.sftpSyncPath(path);
+            
+            // 如果 SFTP 未连接，缓存 cd 命令
+            if (!this.sftp.sessionId) {
+              tab._pendingCdCommand = path;
+            }
+          }
+        }
       }
       tab._currentLine = '';
     } else if (data === '\x7f' || data === '\b') {
@@ -879,9 +892,9 @@ const App = {
     document.getElementById('conn-host').value = conn.host || '';
     document.getElementById('conn-port').value = conn.port || 22;
     document.getElementById('conn-username').value = conn.username || '';
-    document.getElementById('conn-password').value = conn.password || '';
-    document.getElementById('conn-privatekey').value = conn.privateKey || '';
-    document.getElementById('conn-passphrase').value = conn.passphrase || '';
+    document.getElementById('conn-password').value = ''; // 不显示密码
+    document.getElementById('conn-privatekey').value = ''; // 不显示私钥
+    document.getElementById('conn-passphrase').value = ''; // 不显示口令
     document.getElementById('conn-note').value = conn.note || '';
     document.getElementById('conn-init-commands').value = conn.initCommands || '';
     document.getElementById('conn-x11-forwarding').checked = !!conn.x11Forwarding;
@@ -1260,8 +1273,15 @@ const App = {
       this.sftpShowError('SFTP 连接失败：' + r.error);
       return;
     }
-    // 初始化成功，加载根目录或 home
-    await this.sftpNavigateTo('/');
+    
+    // 检查是否有缓存的 cd 命令
+    if (tab._pendingCdCommand) {
+      this.sftpSyncPath(tab._pendingCdCommand);
+      delete tab._pendingCdCommand;
+    } else {
+      // 初始化成功，加载根目录
+      await this.sftpNavigateTo('/');
+    }
   },
 
   sftpShowLoading(show) {
@@ -1290,8 +1310,11 @@ const App = {
       this.sftp.history.push(this.sftp.currentPath);
     }
     this.sftp.currentPath = path;
-    document.getElementById('sftp-path-display').textContent = path;
-    document.getElementById('sftp-path-display').title = path;
+    // 更新路径输入框
+    const pathInput = document.getElementById('sftp-path-input');
+    if (pathInput) {
+      pathInput.value = path;
+    }
     this.sftpRenderList(r.list);
   },
 
@@ -1707,6 +1730,40 @@ const App = {
       if (error) task.error = error;
       this.sftpRenderTasks();
     }
+  },
+  
+  // 同步终端 cd 命令到 SFTP 目录
+  sftpSyncPath(path) {
+    if (!this.sftp.sessionId) return;
+    
+    let targetPath = path;
+    // 处理相对路径
+    if (!path.startsWith('/')) {
+      // 解析路径，处理 .. 和 .
+      const parts = this.sftp.currentPath.split('/').filter(p => p);
+      const pathParts = path.split('/');
+      
+      for (const part of pathParts) {
+        if (part === '..') {
+          // 向上一级
+          parts.pop();
+        } else if (part === '.') {
+          // 当前目录，忽略
+          continue;
+        } else if (part) {
+          // 正常目录
+          parts.push(part);
+        }
+      }
+      
+      targetPath = '/' + parts.join('/');
+    }
+    
+    // 尝试同步到新路径
+    this.sftpNavigateTo(targetPath).catch(err => {
+      // 忽略权限错误
+      console.log('SFTP 路径同步失败（可能权限不足）:', err);
+    });
   },
   
   // 显示/隐藏任务列表
@@ -2134,12 +2191,18 @@ const App = {
     });
 
     document.getElementById('btn-sync-s2m').addEventListener('click', async () => {
+      if (!confirm('确定要将 SQLite 数据同步到 MySQL 吗？\n此操作可能会覆盖 MySQL 中的现有数据！')) {
+        return;
+      }
       this.setSyncStatus('同步中...', 'info');
       const r = await window.sshAPI.syncSQLiteToMySQL();
       this.setSyncStatus(r.success ? `✓ 已同步 ${r.count} 条连接` : '✕ ' + r.error, r.success ? 'success' : 'error');
     });
 
     document.getElementById('btn-sync-m2s').addEventListener('click', async () => {
+      if (!confirm('确定要将 MySQL 数据同步到 SQLite 吗？\n此操作可能会覆盖 SQLite 中的现有数据！')) {
+        return;
+      }
       this.setSyncStatus('同步中...', 'info');
       const r = await window.sshAPI.syncMySQLToSQLite();
       this.setSyncStatus(r.success ? `✓ 已同步 ${r.count} 条连接` : '✕ ' + r.error, r.success ? 'success' : 'error');
@@ -2192,6 +2255,31 @@ const App = {
     // 任务列表按钮
     document.getElementById('btn-sftp-task-clear').addEventListener('click', () => this.sftpClearCompletedTasks());
     document.getElementById('btn-sftp-task-close').addEventListener('click', () => this.sftpShowTaskList(false));
+    
+    // 路径输入框和复制按钮
+    const pathInput = document.getElementById('sftp-path-input');
+    if (pathInput) {
+      pathInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          const path = pathInput.value.trim();
+          if (path) {
+            this.sftpNavigateTo(path);
+          }
+        }
+      });
+    }
+    
+    const copyPathBtn = document.getElementById('btn-sftp-copy-path');
+    if (copyPathBtn) {
+      copyPathBtn.addEventListener('click', () => {
+        const path = this.sftp.currentPath;
+        navigator.clipboard.writeText(path).then(() => {
+          this.sftpShowToast('✓ 路径已复制到剪贴板');
+        }).catch(() => {
+          this.sftpShowToast('复制失败');
+        });
+      });
+    }
 
     // 终端外观设置弹窗
     document.getElementById('term-settings-close').addEventListener('click', () => { document.getElementById('term-settings-overlay').style.display = 'none'; });
