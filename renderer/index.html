@@ -122,6 +122,21 @@
             <button class="btn-icon sftp-btn" id="btn-sftp-close" title="关闭 SFTP">✕</button>
           </div>
         </div>
+        
+        <!-- 上传下载进度列表 -->
+        <div class="sftp-task-list" id="sftp-task-list" style="display:none;">
+          <div class="sftp-task-list-header">
+            <span>传输任务</span>
+            <div class="sftp-task-actions">
+              <button class="btn-icon sftp-btn" id="btn-sftp-task-clear" title="清空完成任务">🗑</button>
+              <button class="btn-icon sftp-btn" id="btn-sftp-task-close" title="关闭任务列表">✕</button>
+            </div>
+          </div>
+          <div class="sftp-task-items" id="sftp-task-items">
+            <!-- 任务项将通过 JS 动态添加 -->
+          </div>
+        </div>
+        
         <div class="sftp-body" id="sftp-body">
           <div class="sftp-loading" id="sftp-loading" style="display:none;">
             <div class="spinner"></div><span>加载中...</span>

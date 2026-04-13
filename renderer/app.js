@@ -1238,7 +1238,8 @@ const App = {
     contextMenu: null,
     selectedItem: null,  // 右键选中项
     cutItem: null,       // 剪切项
-    _resizing: false
+    _resizing: false,
+    tasks: []            // 传输任务列表
   },
 
   async sftpAutoConnect(tab) {
@@ -1432,15 +1433,33 @@ const App = {
       title: '保存文件'
     });
     if (result.canceled || !result.filePath) return;
-    this.sftpShowLoading(true);
-    const r = await window.sshAPI.sftpDownload(this.sftp.sessionId, remotePath, result.filePath);
-    this.sftpShowLoading(false);
-    if (!r.success) {
-      this.sftpShowError('下载失败：' + r.error);
+    
+    // 添加下载任务
+    const taskId = this.sftpAddTask('download', name, result.filePath, remotePath);
+    
+    // 模拟进度更新
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress = Math.min(100, progress + Math.random() * 10);
+      this.sftpUpdateTaskProgress(taskId, progress);
+    }, 500);
+    
+    try {
+      const r = await window.sshAPI.sftpDownload(this.sftp.sessionId, remotePath, result.filePath);
+      clearInterval(interval);
+      this.sftpCompleteTask(taskId, r.success, r.error);
+      if (!r.success) {
+        this.sftpShowError('下载失败：' + r.error);
+        setTimeout(() => this.sftpNavigateTo(this.sftp.currentPath), 2000);
+      } else {
+        this.sftpShowToast(`✓ 下载完成：${name}`);
+        await this.sftpNavigateTo(this.sftp.currentPath);
+      }
+    } catch (error) {
+      clearInterval(interval);
+      this.sftpCompleteTask(taskId, false, error.message);
+      this.sftpShowError('下载失败：' + error.message);
       setTimeout(() => this.sftpNavigateTo(this.sftp.currentPath), 2000);
-    } else {
-      this.sftpShowToast(`✓ 下载完成：${name}`);
-      await this.sftpNavigateTo(this.sftp.currentPath);
     }
   },
 
@@ -1456,14 +1475,32 @@ const App = {
     // 在本地目标目录下创建同名子目录
     const sep = localBase.includes('/') ? '/' : '\\';
     const localPath = localBase.replace(/[/\\]$/, '') + sep + name;
-    this.sftpShowLoading(true);
-    const r = await window.sshAPI.sftpDownloadDir(this.sftp.sessionId, remotePath, localPath);
-    this.sftpShowLoading(false);
-    if (!r.success) {
-      this.sftpShowError('目录下载失败：' + r.error);
+    
+    // 添加下载任务
+    const taskId = this.sftpAddTask('download', name, localPath, remotePath);
+    
+    // 模拟进度更新
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress = Math.min(100, progress + Math.random() * 5);
+      this.sftpUpdateTaskProgress(taskId, progress);
+    }, 800);
+    
+    try {
+      const r = await window.sshAPI.sftpDownloadDir(this.sftp.sessionId, remotePath, localPath);
+      clearInterval(interval);
+      this.sftpCompleteTask(taskId, r.success, r.error);
+      if (!r.success) {
+        this.sftpShowError('目录下载失败：' + r.error);
+        setTimeout(() => this.sftpNavigateTo(this.sftp.currentPath), 2000);
+      } else {
+        this.sftpShowToast(`✓ 目录下载完成：${name}`);
+      }
+    } catch (error) {
+      clearInterval(interval);
+      this.sftpCompleteTask(taskId, false, error.message);
+      this.sftpShowError('目录下载失败：' + error.message);
       setTimeout(() => this.sftpNavigateTo(this.sftp.currentPath), 2000);
-    } else {
-      this.sftpShowToast(`✓ 目录下载完成：${name}`);
     }
   },
 
@@ -1487,15 +1524,33 @@ const App = {
     });
     if (result.canceled || !result.filePaths || result.filePaths.length === 0) return;
 
-    this.sftpShowLoading(true);
     let failCount = 0;
     for (const localPath of result.filePaths) {
       const fileName = localPath.split(/[/\\]/).pop();
       const remotePath = this.sftpJoin(this.sftp.currentPath, fileName);
-      const r = await window.sshAPI.sftpUpload(this.sftp.sessionId, localPath, remotePath);
-      if (!r.success) failCount++;
+      
+      // 添加上传任务
+      const taskId = this.sftpAddTask('upload', fileName, localPath, remotePath);
+      
+      // 模拟进度更新
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress = Math.min(100, progress + Math.random() * 10);
+        this.sftpUpdateTaskProgress(taskId, progress);
+      }, 500);
+      
+      try {
+        const r = await window.sshAPI.sftpUpload(this.sftp.sessionId, localPath, remotePath);
+        clearInterval(interval);
+        this.sftpCompleteTask(taskId, r.success, r.error);
+        if (!r.success) failCount++;
+      } catch (error) {
+        clearInterval(interval);
+        this.sftpCompleteTask(taskId, false, error.message);
+        failCount++;
+      }
     }
-    this.sftpShowLoading(false);
+    
     if (failCount > 0) {
       this.sftpShowError(`${failCount} 个文件上传失败`);
       setTimeout(() => this.sftpNavigateTo(this.sftp.currentPath), 2000);
@@ -1605,6 +1660,116 @@ const App = {
     if (this.sftp.sessionId) {
       window.sshAPI.sftpDisconnect(this.sftp.sessionId);
       this.sftp.sessionId = null;
+    }
+    this.sftp.tasks = [];
+  },
+  
+  // ===== 传输任务管理 =====
+  
+  // 添加传输任务
+  sftpAddTask(type, name, localPath, remotePath) {
+    const task = {
+      id: 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+      type: type, // 'upload' or 'download'
+      name: name,
+      localPath: localPath,
+      remotePath: remotePath,
+      status: 'pending', // 'pending', 'progress', 'success', 'error'
+      progress: 0,
+      speed: 0,
+      startTime: Date.now(),
+      endTime: null
+    };
+    
+    this.sftp.tasks.push(task);
+    this.sftpShowTaskList(true);
+    this.sftpRenderTasks();
+    return task.id;
+  },
+  
+  // 更新任务进度
+  sftpUpdateTaskProgress(taskId, progress, speed = 0) {
+    const task = this.sftp.tasks.find(t => t.id === taskId);
+    if (task) {
+      task.status = 'progress';
+      task.progress = Math.min(100, Math.max(0, progress));
+      task.speed = speed;
+      this.sftpRenderTasks();
+    }
+  },
+  
+  // 完成任务
+  sftpCompleteTask(taskId, success, error = null) {
+    const task = this.sftp.tasks.find(t => t.id === taskId);
+    if (task) {
+      task.status = success ? 'success' : 'error';
+      task.endTime = Date.now();
+      if (error) task.error = error;
+      this.sftpRenderTasks();
+    }
+  },
+  
+  // 显示/隐藏任务列表
+  sftpShowTaskList(show) {
+    const list = document.getElementById('sftp-task-list');
+    if (list) {
+      list.style.display = show ? 'block' : 'none';
+    }
+  },
+  
+  // 渲染任务列表
+  sftpRenderTasks() {
+    const container = document.getElementById('sftp-task-items');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (this.sftp.tasks.length === 0) {
+      container.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 11px;">暂无传输任务</div>';
+      return;
+    }
+    
+    this.sftp.tasks.forEach(task => {
+      const item = document.createElement('div');
+      item.className = 'sftp-task-item';
+      
+      const icon = task.type === 'upload' ? '⬆' : '⬇';
+      const statusIcon = task.status === 'success' ? '✓' : 
+                       task.status === 'error' ? '✕' : 
+                       task.status === 'progress' ? '⟳' : '⏳';
+      const statusClass = task.status === 'success' ? 'success' : 
+                         task.status === 'error' ? 'error' : 'pending';
+      
+      const localPath = task.localPath ? task.localPath.replace(/^.*[\\/]/, '') : '';
+      const remotePath = task.remotePath ? task.remotePath.replace(/^.*[\\/]/, '') : '';
+      
+      item.innerHTML = `
+        <div class="sftp-task-icon">${icon}</div>
+        <div class="sftp-task-info">
+          <div class="sftp-task-name">${escapeHtml(task.name)}</div>
+          <div class="sftp-task-path">${escapeHtml(localPath)} → ${escapeHtml(remotePath)}</div>
+          ${task.status === 'progress' ? `
+          <div class="sftp-task-progress">
+            <div class="sftp-task-progress-bar">
+              <div class="sftp-task-progress-fill" style="width: ${task.progress}%"></div>
+            </div>
+            <div class="sftp-task-progress-text">${task.progress.toFixed(1)}%</div>
+          </div>
+          ` : ''}
+        </div>
+        <div class="sftp-task-status ${statusClass}">${statusIcon}</div>
+      `;
+      
+      container.appendChild(item);
+    });
+  },
+  
+  // 清空完成的任务
+  sftpClearCompletedTasks() {
+    this.sftp.tasks = this.sftp.tasks.filter(t => t.status === 'pending' || t.status === 'progress');
+    this.sftpRenderTasks();
+    if (this.sftp.tasks.length === 0) {
+      this.sftpShowTaskList(false);
     }
   },
 
@@ -1745,8 +1910,27 @@ const App = {
       return new Promise((resolve) => {
         entry.file(async (file) => {
           const remotePath = this.sftpJoin(remoteBasePath, entry.name);
-          const r = await window.sshAPI.sftpUpload(this.sftp.sessionId, file.path, remotePath);
-          resolve(r);
+          
+          // 添加上传任务
+          const taskId = this.sftpAddTask('upload', entry.name, file.path, remotePath);
+          
+          // 模拟进度更新
+          let progress = 0;
+          const interval = setInterval(() => {
+            progress = Math.min(100, progress + Math.random() * 10);
+            this.sftpUpdateTaskProgress(taskId, progress);
+          }, 500);
+          
+          try {
+            const r = await window.sshAPI.sftpUpload(this.sftp.sessionId, file.path, remotePath);
+            clearInterval(interval);
+            this.sftpCompleteTask(taskId, r.success, r.error);
+            resolve(r);
+          } catch (error) {
+            clearInterval(interval);
+            this.sftpCompleteTask(taskId, false, error.message);
+            resolve({ success: false, error: error.message });
+          }
         }, () => {
           resolve({ success: false, error: '无法读取文件' });
         });
@@ -2004,6 +2188,10 @@ const App = {
     document.getElementById('btn-sftp-mkdir').addEventListener('click', () => this.sftpMkdir());
     document.getElementById('btn-sftp-toggle').addEventListener('click', () => this.sftpToggleCollapse());
     document.getElementById('btn-sftp-close').addEventListener('click', () => this.sftpClose());
+    
+    // 任务列表按钮
+    document.getElementById('btn-sftp-task-clear').addEventListener('click', () => this.sftpClearCompletedTasks());
+    document.getElementById('btn-sftp-task-close').addEventListener('click', () => this.sftpShowTaskList(false));
 
     // 终端外观设置弹窗
     document.getElementById('term-settings-close').addEventListener('click', () => { document.getElementById('term-settings-overlay').style.display = 'none'; });

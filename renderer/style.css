@@ -1158,6 +1158,130 @@ body {
 .sftp-context-menu-item.danger { color: var(--red); }
 .sftp-context-menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
 
+/* ===== SFTP 传输任务列表 ===== */
+.sftp-task-list {
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  transition: all .2s;
+}
+
+.sftp-task-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--bg-deep);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.sftp-task-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.sftp-task-items {
+  max-height: 200px;
+  overflow-y: auto;
+  min-height: 20px;
+}
+
+.sftp-task-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  line-height: 1.3;
+  transition: background .1s;
+}
+
+.sftp-task-item:hover {
+  background: rgba(255,255,255,.03);
+}
+
+.sftp-task-icon {
+  width: 20px;
+  text-align: center;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.sftp-task-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sftp-task-name {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.sftp-task-path {
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10px;
+}
+
+.sftp-task-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.sftp-task-progress-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--bg-deep);
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.sftp-task-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width .2s;
+  min-width: 1px;
+}
+
+.sftp-task-progress-text {
+  width: 60px;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.sftp-task-status {
+  width: 20px;
+  text-align: center;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.sftp-task-status.success {
+  color: #22c55e;
+}
+
+.sftp-task-status.error {
+  color: #ef4444;
+}
+
+.sftp-task-status.pending {
+  color: var(--text-muted);
+}
+
 /* SFTP 拖拽上传高亮 */
 .sftp-panel.drag-over .sftp-body {
   outline: 2px dashed var(--accent);
