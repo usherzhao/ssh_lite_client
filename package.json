@@ -10,6 +10,7 @@
   },
   "build": {
     "appId": "com.sshclient.app",
+    "icon": "assets/icon.ico",
     "productName": "SSH Client",
     "directories": {
       "output": "dist"
@@ -27,13 +28,23 @@
     ],
     "win": {
       "target": [
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
-      ]
+      { 
+        "target": "nsis", 
+        "arch": ["x64"] 
+      },
+      { 
+        "target": "portable",  
+        "arch": ["x64"] 
+      }
+    ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     },
     "asar": true,
     "asarUnpack": [

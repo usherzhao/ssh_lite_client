@@ -116,7 +116,7 @@ npm start
 # 等价于：electron .
 ```
 
-### 打包（Windows x64 便携版 .exe）
+### 打包（Windows x64）
 
 ```bash
 # 完整打包（生成可执行文件到 dist/）
@@ -128,7 +128,7 @@ npm run build:dir
 # 等价于：electron-builder --win --x64 --dir
 ```
 
-> 打包产物输出至 `dist/` 目录，格式为 **Portable（免安装单文件 exe）**，架构为 **x64**。
+> 打包产物输出至 `dist/` 目录，同时生成 **NSIS 安装包** 和 **便携版 exe**，架构为 **x64**。
 
 ---
 
@@ -284,7 +284,7 @@ CREATE TABLE IF NOT EXISTS quick_commands (
 | `delete-quick-command` | R→M | 删除快捷指令 |
 | `get-encrypt-key-status` | R→M | 获取加密密钥状态（环境变量是否设置） |
 
-> R→M：渲染进程发起，主进程响应（`ipcRenderer.invoke` / `ipcMain.handle`）  
+> R→M：渲染进程发起，主进程响应（`ipcRenderer.invoke` / `ipcMain.handle`）
 > M→R：主进程推送（`webContents.send` / `ipcRenderer.on`）
 
 ---
@@ -367,3 +367,4 @@ MIT
   - 新增数据同步确认：数据库同步前弹出二次确认
   - 修复 SFTP 路径显示问题：正确处理相对路径
   - 修复首次连接 cd 命令同步问题：缓存 cd 命令并在 SFTP 连接后执行
+  - 优化打包配置：支持 NSIS 安装包和便携版双模式生成，图标配置优化确保正确显示
