@@ -4,7 +4,7 @@
 :root {
   --bg-deep:     #0d1117;
   --bg-panel:    #161b22;
-  --bg-sidebar:  #13161d;
+  --bg-sidebar:  #0f1218;
   --bg-hover:    #1f2937;
   --bg-active:   #1e3a5f;
   --accent:      #3b82f6;
@@ -15,11 +15,14 @@
   --text-primary:#e2e8f0;
   --text-muted:  #8b949e;
   --border:      #21262d;
+  --border-light:#2d333b;
   --tab-bg:      #1c2030;
   --tab-active:  #0d1117;
   --radius:      6px;
   --shadow:      0 4px 24px rgba(0,0,0,.5);
   --titlebar-h:  36px;
+  --toolbar-h:   34px;
+  --statusbar-h: 24px;
 }
 
 html, body {
@@ -104,23 +107,13 @@ body {
 }
 
 /* ===== 侧边栏 ===== */
-.sidebar {
-  width: 240px;
-  min-width: 180px;
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
 .sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px 8px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--border);
+  height: 34px;
 }
 .sidebar-title { font-weight: 600; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .6px; }
 
@@ -270,7 +263,7 @@ body {
   align-items: stretch;
   background: var(--tab-bg);
   border-bottom: 1px solid var(--border);
-  min-height: 36px;
+  min-height: 34px;
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -315,21 +308,25 @@ body {
 .tab-close {
   margin-left: auto;
   flex-shrink: 0;
-  width: 16px; height: 16px;
+  width: 18px; height: 18px;
   border-radius: 3px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px;
   opacity: 0;
   transition: opacity .2s, background .15s;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
 }
 .tab:hover .tab-close { opacity: 1; }
 .tab-close:hover { background: var(--bg-hover); color: var(--red); }
+.tab-close .svg-icon { width: 10px; height: 10px; }
 
 .tab-actions {
   display: flex;
   align-items: center;
-  padding: 0 6px;
-  gap: 2px;
+  padding: 0 4px;
+  gap: 1px;
   border-left: 1px solid var(--border);
 }
 
@@ -499,18 +496,6 @@ body {
 }
 
 /* ===== 按钮 ===== */
-.btn-icon {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-radius: var(--radius);
-  width: 28px; height: 28px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
-  transition: background .15s, color .15s;
-}
-.btn-icon:hover { background: var(--bg-hover); color: var(--text-primary); }
 
 .btn-primary {
   background: var(--accent);
@@ -832,18 +817,6 @@ body {
   align-items: center;
   gap: 2px;
 }
-.cmd-btn {
-  width: 24px;
-  height: 24px;
-  font-size: 13px;
-}
-#btn-cmd-send {
-  color: var(--green);
-}
-#btn-cmd-send:hover {
-  background: rgba(34, 197, 94, .15);
-  color: var(--green);
-}
 
 .cmd-input-body {
   padding: 6px 10px;
@@ -955,131 +928,6 @@ body {
 .xterm-viewport { overflow-y: auto !important; }
 
 /* ===== SFTP 面板 ===== */
-.sftp-panel {
-  flex-shrink: 0;
-  background: var(--bg-panel);
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  height: 220px;
-  min-height: 120px;
-  max-height: 50vh;
-  transition: height .15s ease;
-  position: relative;
-}
-.sftp-panel.collapsed { height: 34px; min-height: 34px; overflow: hidden; }
-
-.sftp-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 8px 4px 12px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  height: 34px;
-  background: var(--bg-panel);
-  cursor: ns-resize;
-  user-select: none;
-}
-.sftp-panel-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  pointer-events: none;
-}
-.sftp-icon { font-size: 13px; }
-.sftp-host-label {
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 500;
-  text-transform: none;
-  letter-spacing: 0;
-}
-.sftp-panel-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  cursor: default;
-}
-.sftp-path-display {
-  font-size: 11px;
-  color: var(--text-muted);
-  background: var(--bg-deep);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 2px 8px;
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: monospace;
-  cursor: default;
-  user-select: text;
-}
-.sftp-btn {
-  width: 24px !important;
-  height: 24px !important;
-  font-size: 13px !important;
-}
-.sftp-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-/* SFTP 路径输入 */
-.sftp-path-input-container {
-  display: flex;
-  align-items: center;
-  margin-right: 8px;
-  flex: 1;
-  min-width: 200px;
-}
-
-.sftp-path-input {
-  flex: 1;
-  background: var(--bg-deep);
-  border: 1px solid var(--border);
-  border-radius: var(--radius) 0 0 var(--radius);
-  padding: 4px 8px;
-  font-size: 12px;
-  font-family: var(--font-mono);
-  color: var(--text-primary);
-  outline: none;
-  transition: all .2s;
-}
-
-.sftp-path-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(59,130,246,.1);
-}
-
-.sftp-path-btn {
-  background: var(--bg-deep);
-  border: 1px solid var(--border);
-  border-left: none;
-  border-radius: 0 var(--radius) var(--radius) 0;
-  padding: 4px 8px;
-  cursor: pointer;
-  color: var(--text-muted);
-  transition: all .2s;
-  font-size: 10px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sftp-path-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
 .sftp-body {
   flex: 1;
   overflow: hidden;
@@ -1133,7 +981,7 @@ body {
 .sftp-file-item.selected { background: var(--bg-active); }
 .sftp-file-item.cut { opacity: .5; }
 
-.sftp-file-icon { width: 16px; text-align: center; flex-shrink: 0; font-size: 13px; }
+.sftp-file-icon { width: 16px; text-align: center; flex-shrink: 0; font-size: 12px; display: flex; align-items: center; justify-content: center; }
 .sftp-file-name {
   flex: 1;
   overflow: hidden;
@@ -1207,25 +1055,6 @@ body {
 .sftp-context-menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
 
 /* ===== SFTP 传输任务弹窗 ===== */
-.sftp-task-toggle-btn {
-  position: relative;
-}
-
-.sftp-task-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 9px;
-  min-width: 14px;
-  height: 14px;
-  line-height: 14px;
-  text-align: center;
-  border-radius: 7px;
-  padding: 0 3px;
-}
-
 .sftp-task-overlay {
   position: fixed;
   top: 0;
@@ -1424,4 +1253,502 @@ body {
   min-height: 58px;
   transition: font-family .15s, font-size .15s;
   user-select: none;
+}
+
+/* ===== SVG 图标系统 ===== */
+.svg-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.svg-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.svg-icon-sm {
+  width: 14px;
+  height: 14px;
+}
+
+.svg-icon-lg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ===== 工具栏 ===== */
+.toolbar {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  height: var(--toolbar-h);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.toolbar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border-light);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.toolbar-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  height: 26px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 12px;
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+.toolbar-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.toolbar-btn.active { background: var(--bg-active); color: var(--accent); }
+.toolbar-spacer { flex: 1; }
+.toolbar-btn .svg-icon { width: 14px; height: 14px; }
+.toolbar-btn-label { font-size: 11px; }
+
+/* ===== 状态栏 ===== */
+.statusbar {
+  display: flex;
+  align-items: center;
+  height: var(--statusbar-h);
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+  padding: 0 12px;
+  flex-shrink: 0;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.statusbar-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.statusbar-item .svg-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.statusbar-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.statusbar-dot.connected {
+  background: var(--green);
+  box-shadow: 0 0 4px var(--green);
+}
+
+.statusbar-spacer {
+  flex: 1;
+}
+
+/* ===== 改进的按钮样式 ===== */
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.btn-icon:hover { background: var(--bg-hover); color: var(--text-primary); }
+.btn-icon:active { background: var(--bg-active); }
+
+/* ===== 改进的标签栏 ===== */
+.tab-bar {
+  display: flex;
+  align-items: stretch;
+  background: var(--tab-bg);
+  border-bottom: 1px solid var(--border);
+  min-height: 34px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.tab-actions {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  gap: 1px;
+  border-left: 1px solid var(--border);
+}
+
+.tab-actions .btn-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.tab-actions .btn-icon .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* ===== 改进的 SFTP 面板 ===== */
+.sftp-panel {
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 220px;
+  min-height: 120px;
+  max-height: 50vh;
+  transition: height .15s ease;
+  position: relative;
+}
+.sftp-panel.collapsed { height: 34px; min-height: 34px; overflow: hidden; }
+
+.sftp-panel-header {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  cursor: ns-resize;
+  user-select: none;
+}
+
+.sftp-panel-row {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 8px;
+  background: var(--bg-panel);
+}
+
+.sftp-panel-row:first-child {
+  border-bottom: 1px solid var(--border);
+}
+
+.sftp-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  pointer-events: none;
+}
+.sftp-icon { font-size: 13px; }
+.sftp-host-label {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.sftp-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  cursor: default;
+  margin-left: auto;
+}
+
+.sftp-btn {
+  width: 24px !important;
+  height: 24px !important;
+}
+.sftp-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.sftp-btn .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.sftp-path-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sftp-path-input-container {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 120px;
+}
+
+.sftp-path-input {
+  flex: 1;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 3px 0 0 3px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: '"Cascadia Code","Fira Code","JetBrains Mono",Consolas,monospace';
+  color: var(--text-primary);
+  outline: none;
+  transition: all .2s;
+  height: 22px;
+}
+
+.sftp-path-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(59,130,246,.15);
+}
+
+.sftp-path-btn {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 3px 3px 0;
+  padding: 0 6px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all .15s;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sftp-path-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.sftp-path-btn .svg-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.sftp-action-group {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.sftp-action-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border-light);
+  margin: 0 3px;
+}
+
+/* ===== 改进的侧边栏 ===== */
+.sidebar {
+  width: 240px;
+  min-width: 180px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  height: 34px;
+}
+
+.sidebar-header .btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.sidebar-header .btn-icon .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* ===== 改进的标题栏 ===== */
+.titlebar-btn .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.titlebar-btn.win-btn.close:hover .svg-icon {
+  color: #fff;
+}
+
+/* ===== 改进的指令发送窗口 ===== */
+.cmd-btn {
+  width: 24px;
+  height: 24px;
+}
+.cmd-btn .svg-icon {
+  width: 13px;
+  height: 13px;
+}
+
+#btn-cmd-send {
+  color: var(--green);
+}
+#btn-cmd-send:hover {
+  background: rgba(34, 197, 94, .15);
+  color: var(--green);
+}
+
+/* ===== 改进的快捷指令区 ===== */
+.quick-cmd-header .btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.quick-cmd-header .btn-icon .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* ===== 改进的连接列表项 ===== */
+.conn-item-actions .btn-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.conn-item-actions .btn-icon .svg-icon {
+  width: 13px;
+  height: 13px;
+}
+
+/* ===== 改进的终端面板栏 ===== */
+.terminal-panel-actions .btn-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.terminal-panel-actions .btn-icon .svg-icon {
+  width: 13px;
+  height: 13px;
+}
+
+/* ===== SFTP 传输任务弹窗图标 ===== */
+.sftp-task-icon .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.sftp-task-dialog-actions .btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.sftp-task-dialog-actions .btn-icon .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* ===== 改进的 SFTP 文件图标 ===== */
+.sftp-file-icon {
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sftp-file-icon .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* ===== 改进的弹窗关闭按钮 ===== */
+.modal-header .btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.modal-header .btn-icon .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* ===== 改进的 tab 关闭按钮 ===== */
+.tab-close {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 18px; height: 18px;
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity .2s, background .15s;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.tab:hover .tab-close { opacity: 1; }
+.tab-close:hover { background: var(--bg-hover); color: var(--red); }
+.tab-close .svg-icon { width: 10px; height: 10px; }
+
+/* ===== 改进的连接项图标 ===== */
+.conn-item-icon {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+.conn-item-icon.connected {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+
+/* ===== 改进的 SFTP 任务徽章 ===== */
+.sftp-task-toggle-btn {
+  position: relative;
+}
+
+.sftp-task-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  min-width: 14px;
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  border-radius: 7px;
+  padding: 0 3px;
+  pointer-events: none;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ===== 改进的 Welcome 页面 ===== */
+.welcome-icon-svg {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  color: var(--accent);
 }

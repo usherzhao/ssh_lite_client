@@ -122,7 +122,7 @@ const App = {
         <span class="group-arrow">▾</span>
         <span class="group-name">${escapeHtml(group)}</span>
         <span class="group-count">${count}</span>
-        ${group !== '默认分组' ? `<button class="group-del-btn" title="删除分组">✕</button>` : ''}
+        ${group !== '默认分组' ? `<button class="group-del-btn" title="删除分组"><svg class="svg-icon"><use href="#icon-close"/></svg></button>` : ''}
       `;
       label.addEventListener('click', (e) => {
         if (e.target.closest('.group-del-btn')) return;
@@ -157,8 +157,8 @@ const App = {
               <div class="conn-item-host">${escapeHtml(conn.username)}@${escapeHtml(conn.host)}:${conn.port || 22}</div>
             </div>
             <div class="conn-item-actions">
-              <button class="btn-icon" title="编辑">✏</button>
-              <button class="btn-icon" title="删除">🗑</button>
+              <button class="btn-icon" title="编辑"><svg class="svg-icon"><use href="#icon-edit"/></svg></button>
+              <button class="btn-icon" title="删除"><svg class="svg-icon"><use href="#icon-trash"/></svg></button>
             </div>
           `;
           item.addEventListener('click', (e) => {
@@ -241,10 +241,10 @@ const App = {
       el.innerHTML = `
         <div class="tab-dot ${tab.connected ? 'connected' : ''}"></div>
         <span style="overflow:hidden;text-overflow:ellipsis;flex:1">${escapeHtml(tab.title)}</span>
-        <div class="tab-close">✕</div>
+        <div class="tab-close"><svg class="svg-icon"><use href="#icon-close"/></svg></div>
       `;
       el.addEventListener('click', (e) => {
-        if (e.target.classList.contains('tab-close')) {
+        if (e.target.closest('.tab-close')) {
           this.closeTab(tab.id);
         } else {
           this.activateTab(tab.id);
@@ -256,9 +256,17 @@ const App = {
       });
       wrapper.appendChild(el);
     });
+    const tabsCount = document.getElementById('statusbar-tabs-count');
+    if (tabsCount) tabsCount.querySelector('span').textContent = '标签: ' + this.tabs.length;
   },
 
   activateTab(tabId) {
+    // 保存当前 tab 的 SFTP 路径
+    const prevTab = this.tabs.find(t => t.id === this.activeTabId);
+    if (prevTab && this.sftp.sessionId === prevTab.sessionId) {
+      prevTab._sftpPath = this.sftp.currentPath;
+    }
+
     this.activeTabId = tabId;
     this.renderTabs();
     this.renderTerminalArea();
@@ -268,19 +276,19 @@ const App = {
     if (tab && tab.connected) {
       const panel = document.getElementById('sftp-panel');
       if (this.sftp.sessionId !== tab.sessionId) {
-        // 只更新显示的路径/主机标签，不重新建连接
-        // 如果此 tab 已有 sftp 连接则刷新，否则重新连接
         this.sftp.sessionId = tab.sessionId;
         this.sftp.connName = tab.config.name || tab.config.host;
         document.getElementById('sftp-host-label').textContent = this.sftp.connName;
         panel.style.display = 'flex';
-        // 尝试刷新列表（如果 sftp 连接仍然有效）
-        window.sshAPI.sftpList(tab.sessionId, this.sftp.currentPath).then(r => {
+        // 恢复此 tab 保存的路径，或使用根路径
+        const savedPath = tab._sftpPath || '/';
+        this.sftp.currentPath = savedPath;
+        this.sftp.history = [];
+        window.sshAPI.sftpList(tab.sessionId, savedPath).then(r => {
           if (r.success) {
-            document.getElementById('sftp-path-display').textContent = this.sftp.currentPath;
+            document.getElementById('sftp-path-input').value = savedPath;
             this.sftpRenderList(r.list);
           } else {
-            // SFTP 连接失效，重新建立
             this.sftpAutoConnect(tab);
           }
         });
@@ -352,8 +360,8 @@ const App = {
           <span>${escapeHtml(tab.title)}</span>
         </div>
         <div class="terminal-panel-actions">
-          <button class="btn-icon" data-action="detach" title="新窗口">🗗</button>
-          <button class="btn-icon" data-action="close" title="关闭">✕</button>
+          <button class="btn-icon" data-action="detach" title="新窗口"><svg class="svg-icon"><use href="#icon-window"/></svg></button>
+          <button class="btn-icon" data-action="close" title="关闭"><svg class="svg-icon"><use href="#icon-close"/></svg></button>
         </div>
       `;
       bar.querySelector('[data-action="detach"]').addEventListener('click', () => this.detachTab(tab));
@@ -410,7 +418,7 @@ const App = {
       if (wrapper) {
         wrapper.innerHTML = `
           <div class="terminal-connecting">
-            <div style="color:var(--red);font-size:32px">✕</div>
+            <div style="color:var(--red);font-size:32px"><svg class="svg-icon svg-icon-lg"><use href="#icon-close"/></svg></div>
             <span style="color:var(--red)">连接失败</span>
             <span style="font-size:12px;color:var(--text-muted)">${escapeHtml(result.error || '')}</span>
             <button class="btn-secondary" onclick="App.closeTab('${tab.id}')">关闭</button>
@@ -657,13 +665,13 @@ const App = {
       item.className = 'cmd-history-item';
       item.dataset.index = index;
       const displayCmd = entry.cmd.replace(/\n/g, ' ↵ ');
-      const sourceIcon = entry.source === 'terminal' ? '⌨' : '▶';
+      const sourceIcon = entry.source === 'terminal' ? '<svg class="svg-icon svg-icon-sm"><use href="#icon-keyboard"/></svg>' : '<svg class="svg-icon svg-icon-sm"><use href="#icon-send"/></svg>';
       item.innerHTML = `
         <span class="cmd-history-item-index">${index + 1}</span>
         <span class="cmd-history-item-source" title="${entry.source === 'terminal' ? '终端输入' : '指令窗口'}">${sourceIcon}</span>
         <span class="cmd-history-item-text" title="${escapeHtml(entry.cmd)}">${escapeHtml(displayCmd)}</span>
         <span class="cmd-history-item-time">${entry.time}</span>
-        <span class="cmd-history-item-del" title="删除">✕</span>
+        <span class="cmd-history-item-del" title="删除"><svg class="svg-icon svg-icon-sm"><use href="#icon-close"/></svg></span>
       `;
       item.addEventListener('click', (e) => {
         if (e.target.closest('.cmd-history-item-del')) {
@@ -696,10 +704,10 @@ const App = {
     const btn = document.getElementById('btn-cmd-toggle');
     if (this.cmdInputCollapsed) {
       panel.classList.add('collapsed');
-      btn.textContent = '▲';
+      btn.innerHTML = '<svg class="svg-icon"><use href="#icon-chevron-up"/></svg>';
     } else {
       panel.classList.remove('collapsed');
-      btn.textContent = '▼';
+      btn.innerHTML = '<svg class="svg-icon"><use href="#icon-chevron-down"/></svg>';
     }
   },
 
@@ -788,7 +796,7 @@ const App = {
 
     list.innerHTML = '';
     if (filtered.length === 0) {
-      list.innerHTML = '<span class="quick-cmd-empty">暂无快捷指令，点击 ＋ 添加</span>';
+      list.innerHTML = '<span class="quick-cmd-empty">暂无快捷指令，点击 <svg class="svg-icon svg-icon-sm"><use href="#icon-plus"/></svg> 添加</span>';
       return;
     }
 
@@ -798,10 +806,10 @@ const App = {
       item.title = cmd.command;
       item.innerHTML = `
         <span class="quick-cmd-item-name">${escapeHtml(cmd.name)}</span>
-        <span class="quick-cmd-item-del" title="删除">✕</span>
+        <span class="quick-cmd-item-del" title="删除"><svg class="svg-icon svg-icon-sm"><use href="#icon-close"/></svg></span>
       `;
       item.addEventListener('click', (e) => {
-        if (e.target.classList.contains('quick-cmd-item-del')) {
+        if (e.target.closest('.quick-cmd-item-del')) {
           e.stopPropagation();
           this.deleteQuickCommand(cmd.id);
           return;
@@ -853,10 +861,10 @@ const App = {
     const btn = document.getElementById('btn-toggle-quick-cmd');
     if (this.quickCmdCollapsed) {
       bar.classList.add('collapsed');
-      btn.textContent = '▲';
+      btn.innerHTML = '<svg class="svg-icon"><use href="#icon-chevron-up"/></svg>';
     } else {
       bar.classList.remove('collapsed');
-      btn.textContent = '▼';
+      btn.innerHTML = '<svg class="svg-icon"><use href="#icon-chevron-down"/></svg>';
     }
   },
 
@@ -980,7 +988,7 @@ const App = {
       this.setConnStatus('✓ 连接成功！', 'success');
       window.sshAPI.disconnect(tempId);
     } else {
-      this.setConnStatus('✕ ' + (result.error || '连接失败'), 'error');
+      this.setConnStatus('✗ ' + (result.error || '连接失败'), 'error');
     }
   },
 
@@ -988,6 +996,12 @@ const App = {
     const el = document.getElementById('conn-status');
     el.textContent = msg;
     el.className = 'conn-status ' + (type || '');
+    const dot = document.getElementById('statusbar-dot');
+    const info = document.getElementById('statusbar-conn-info');
+    if (dot && info) {
+      dot.className = 'statusbar-dot ' + (type || '');
+      info.textContent = msg;
+    }
   },
 
   async deleteConnection(id) {
@@ -1121,11 +1135,11 @@ const App = {
     const menu = document.createElement('div');
     menu.className = 'context-menu';
     menu.innerHTML = `
-      <div class="context-menu-item" data-action="connect">▶ 连接</div>
-      <div class="context-menu-item" data-action="new-win">🗗 新窗口打开</div>
+      <div class="context-menu-item" data-action="connect"><svg class="svg-icon svg-icon-sm"><use href="#icon-send"/></svg> 连接</div>
+      <div class="context-menu-item" data-action="new-win"><svg class="svg-icon svg-icon-sm"><use href="#icon-window"/></svg> 新窗口打开</div>
       <div class="context-menu-sep"></div>
-      <div class="context-menu-item" data-action="edit">✏ 编辑</div>
-      <div class="context-menu-item danger" data-action="delete">🗑 删除</div>
+      <div class="context-menu-item" data-action="edit"><svg class="svg-icon svg-icon-sm"><use href="#icon-edit"/></svg> 编辑</div>
+      <div class="context-menu-item danger" data-action="delete"><svg class="svg-icon svg-icon-sm"><use href="#icon-trash"/></svg> 删除</div>
     `;
     menu.style.left = Math.min(e.clientX, window.innerWidth - 170) + 'px';
     menu.style.top = Math.min(e.clientY, window.innerHeight - 150) + 'px';
@@ -1143,10 +1157,10 @@ const App = {
     const menu = document.createElement('div');
     menu.className = 'context-menu';
     menu.innerHTML = `
-      <div class="context-menu-item" data-action="detach">🗗 新窗口打开</div>
-      <div class="context-menu-item" data-action="reconnect">↺ 重新连接</div>
+      <div class="context-menu-item" data-action="detach"><svg class="svg-icon svg-icon-sm"><use href="#icon-window"/></svg> 新窗口打开</div>
+      <div class="context-menu-item" data-action="reconnect"><svg class="svg-icon svg-icon-sm"><use href="#icon-refresh"/></svg> 重新连接</div>
       <div class="context-menu-sep"></div>
-      <div class="context-menu-item danger" data-action="close">✕ 关闭标签页</div>
+      <div class="context-menu-item danger" data-action="close"><svg class="svg-icon svg-icon-sm"><use href="#icon-close"/></svg> 关闭标签页</div>
     `;
     menu.style.left = Math.min(e.clientX, window.innerWidth - 170) + 'px';
     menu.style.top = Math.min(e.clientY, window.innerHeight - 130) + 'px';
@@ -1310,6 +1324,9 @@ const App = {
       this.sftp.history.push(this.sftp.currentPath);
     }
     this.sftp.currentPath = path;
+    // 同步保存到当前 tab
+    const activeTab = this.tabs.find(t => t.id === this.activeTabId);
+    if (activeTab) activeTab._sftpPath = path;
     // 更新路径输入框
     const pathInput = document.getElementById('sftp-path-input');
     if (pathInput) {
@@ -1348,7 +1365,7 @@ const App = {
       if (item.name === '.' || item.name === '..') return;
       const row = document.createElement('div');
       row.className = 'sftp-file-item';
-      const icon = item.isDir ? '📁' : (item.isSymlink ? '🔗' : this.sftpFileIcon(item.name));
+      const icon = item.isDir ? '<svg class="svg-icon"><use href="#icon-folder"/></svg>' : (item.isSymlink ? '<svg class="svg-icon"><use href="#icon-link"/></svg>' : this.sftpFileIcon(item.name));
       const nameClass = item.isDir ? 'is-dir' : (item.isSymlink ? 'is-symlink' : '');
       const sizeStr = item.isDir ? '-' : this.sftpFormatSize(item.size);
       const mtimeStr = this.sftpFormatTime(item.mtime);
@@ -1401,18 +1418,18 @@ const App = {
 
     if (item.isDir) {
       menu.innerHTML = `
-        <div class="sftp-context-menu-item" data-act="open">📂 打开</div>
-        <div class="sftp-context-menu-item" data-act="download">⬇ 下载目录</div>
+        <div class="sftp-context-menu-item" data-act="open"><svg class="svg-icon svg-icon-sm"><use href="#icon-folder"/></svg> 打开</div>
+        <div class="sftp-context-menu-item" data-act="download"><svg class="svg-icon svg-icon-sm"><use href="#icon-download"/></svg> 下载目录</div>
         <div class="sftp-context-menu-sep"></div>
-        <div class="sftp-context-menu-item" data-act="rename">✏ 重命名</div>
-        <div class="sftp-context-menu-item danger" data-act="delete">🗑 删除目录</div>
+        <div class="sftp-context-menu-item" data-act="rename"><svg class="svg-icon svg-icon-sm"><use href="#icon-edit"/></svg> 重命名</div>
+        <div class="sftp-context-menu-item danger" data-act="delete"><svg class="svg-icon svg-icon-sm"><use href="#icon-trash"/></svg> 删除目录</div>
       `;
     } else {
       menu.innerHTML = `
-        <div class="sftp-context-menu-item" data-act="download">⬇ 下载</div>
+        <div class="sftp-context-menu-item" data-act="download"><svg class="svg-icon svg-icon-sm"><use href="#icon-download"/></svg> 下载</div>
         <div class="sftp-context-menu-sep"></div>
-        <div class="sftp-context-menu-item" data-act="rename">✏ 重命名</div>
-        <div class="sftp-context-menu-item danger" data-act="delete">🗑 删除文件</div>
+        <div class="sftp-context-menu-item" data-act="rename"><svg class="svg-icon svg-icon-sm"><use href="#icon-edit"/></svg> 重命名</div>
+        <div class="sftp-context-menu-item danger" data-act="delete"><svg class="svg-icon svg-icon-sm"><use href="#icon-trash"/></svg> 删除文件</div>
       `;
     }
 
@@ -1634,7 +1651,7 @@ const App = {
         <div class="modal" style="max-width:380px;" id="modal-sftp-input">
           <div class="modal-header">
             <span id="sftp-input-title"></span>
-            <button class="btn-icon" id="sftp-input-close">✕</button>
+            <button class="btn-icon" id="sftp-input-close"><svg class="svg-icon"><use href="#icon-close"/></svg></button>
           </div>
           <div class="modal-body">
             <div class="form-row">
@@ -1805,10 +1822,10 @@ const App = {
       const item = document.createElement('div');
       item.className = 'sftp-task-item';
       
-      const icon = task.type === 'upload' ? '⬆' : '⬇';
-      const statusIcon = task.status === 'success' ? '✓' : 
-                       task.status === 'error' ? '✕' : 
-                       task.status === 'progress' ? '⟳' : '⏳';
+      const icon = task.type === 'upload' ? '<svg class="svg-icon"><use href="#icon-upload"/></svg>' : '<svg class="svg-icon"><use href="#icon-download"/></svg>';
+      const statusIcon = task.status === 'success' ? '<svg class="svg-icon svg-icon-sm"><use href="#icon-check"/></svg>' : 
+                       task.status === 'error' ? '<svg class="svg-icon svg-icon-sm"><use href="#icon-close"/></svg>' : 
+                       task.status === 'progress' ? '<svg class="svg-icon svg-icon-sm" style="animation:spin 1s linear infinite"><use href="#icon-spinner"/></svg>' : '⏳';
       const statusClass = task.status === 'success' ? 'success' : 
                          task.status === 'error' ? 'error' : 'pending';
       
@@ -1850,7 +1867,7 @@ const App = {
     const btn = document.getElementById('btn-sftp-toggle');
     this.sftp.collapsed = !this.sftp.collapsed;
     panel.classList.toggle('collapsed', this.sftp.collapsed);
-    btn.textContent = this.sftp.collapsed ? '▲' : '▼';
+    btn.innerHTML = this.sftp.collapsed ? '<svg class="svg-icon"><use href="#icon-chevron-up"/></svg>' : '<svg class="svg-icon"><use href="#icon-chevron-down"/></svg>';
   },
 
   sftpUp() {
@@ -1890,21 +1907,25 @@ const App = {
   // 工具：根据扩展名返回文件图标
   sftpFileIcon(name) {
     const ext = (name.split('.').pop() || '').toLowerCase();
+    const fileIcon = (id) => `<svg class="svg-icon"><use href="#${id}"/></svg>`;
+    const codeIcon = fileIcon('icon-terminal');
+    const docIcon = fileIcon('icon-list');
+    const folderIcon = fileIcon('icon-folder');
     const map = {
-      js: '📜', ts: '📜', jsx: '📜', tsx: '📜',
-      py: '🐍', rb: '💎', go: '🐹', rs: '🦀', java: '☕',
-      html: '🌐', css: '🎨', scss: '🎨', less: '🎨',
-      json: '📋', xml: '📋', yaml: '📋', yml: '📋', toml: '📋',
-      md: '📝', txt: '📝', log: '📋',
-      sh: '⚙', bash: '⚙', zsh: '⚙',
-      zip: '📦', tar: '📦', gz: '📦', bz2: '📦', rar: '📦', '7z': '📦',
-      jpg: '🖼', jpeg: '🖼', png: '🖼', gif: '🖼', svg: '🖼', webp: '🖼',
-      mp4: '🎬', mkv: '🎬', avi: '🎬', mov: '🎬',
-      mp3: '🎵', wav: '🎵', flac: '🎵',
-      pdf: '📕', doc: '📄', docx: '📄', xls: '📊', xlsx: '📊',
-      db: '🗄', sql: '🗄',
+      js: codeIcon, ts: codeIcon, jsx: codeIcon, tsx: codeIcon,
+      py: codeIcon, rb: codeIcon, go: codeIcon, rs: codeIcon, java: codeIcon,
+      html: codeIcon, css: codeIcon, scss: codeIcon, less: codeIcon,
+      json: docIcon, xml: docIcon, yaml: docIcon, yml: docIcon, toml: docIcon,
+      md: docIcon, txt: docIcon, log: docIcon,
+      sh: codeIcon, bash: codeIcon, zsh: codeIcon,
+      zip: folderIcon, tar: folderIcon, gz: folderIcon, bz2: folderIcon, rar: folderIcon, '7z': folderIcon,
+      jpg: docIcon, jpeg: docIcon, png: docIcon, gif: docIcon, svg: docIcon, webp: docIcon,
+      mp4: docIcon, mkv: docIcon, avi: docIcon, mov: docIcon,
+      mp3: docIcon, wav: docIcon, flac: docIcon,
+      pdf: docIcon, doc: docIcon, docx: docIcon, xls: docIcon, xlsx: docIcon,
+      db: fileIcon('icon-database'), sql: fileIcon('icon-database'),
     };
-    return map[ext] || '📄';
+    return map[ext] || fileIcon('icon-list');
   },
 
   // SFTP 面板拖拽调整高度
@@ -2123,6 +2144,24 @@ const App = {
     document.getElementById('btn-term-settings').addEventListener('click', () => this.openTermSettings());
     document.getElementById('btn-cmd-input').addEventListener('click', () => this.toggleCmdInputPanel());
 
+    // 工具栏事件
+    document.getElementById('btn-tb-sftp').addEventListener('click', () => {
+      const panel = document.getElementById('sftp-panel');
+      if (panel.style.display === 'none') {
+        panel.style.display = '';
+      } else {
+        panel.style.display = 'none';
+      }
+    });
+    document.getElementById('btn-tb-cmd').addEventListener('click', () => this.toggleCmdInputPanel());
+    document.getElementById('btn-tb-quick-cmd').addEventListener('click', () => {
+      const bar = document.getElementById('quick-cmd-bar');
+      if (bar) bar.style.display = bar.style.display === 'none' ? '' : 'none';
+    });
+    document.getElementById('btn-tb-settings').addEventListener('click', () => {
+      document.getElementById('db-modal').style.display = '';
+    });
+
     // 指令发送窗口事件
     document.getElementById('btn-cmd-send').addEventListener('click', () => this.sendCmdInput());
     document.getElementById('btn-cmd-clear').addEventListener('click', () => {
@@ -2187,7 +2226,7 @@ const App = {
     document.getElementById('btn-test-mysql').addEventListener('click', async () => {
       this.setMysqlStatus('测试中...', 'info');
       const r = await window.sshAPI.testMySQL(this.getMysqlFormConfig());
-      this.setMysqlStatus(r.success ? '✓ 连接成功' : '✕ ' + r.error, r.success ? 'success' : 'error');
+      this.setMysqlStatus(r.success ? '✓ 连接成功' : '✗ ' + r.error, r.success ? 'success' : 'error');
     });
 
     document.getElementById('btn-connect-mysql').addEventListener('click', async () => {
@@ -2201,7 +2240,7 @@ const App = {
         await this.loadConnections();
         this.renderSidebar();
       } else {
-        this.setMysqlStatus('✕ ' + r.error, 'error');
+        this.setMysqlStatus('✗ ' + r.error, 'error');
       }
     });
 
@@ -2211,7 +2250,7 @@ const App = {
       }
       this.setSyncStatus('同步中...', 'info');
       const r = await window.sshAPI.syncSQLiteToMySQL();
-      this.setSyncStatus(r.success ? `✓ 已同步 ${r.count} 条连接` : '✕ ' + r.error, r.success ? 'success' : 'error');
+      this.setSyncStatus(r.success ? `✓ 已同步 ${r.count} 条连接` : '✗ ' + r.error, r.success ? 'success' : 'error');
     });
 
     document.getElementById('btn-sync-m2s').addEventListener('click', async () => {
@@ -2220,7 +2259,7 @@ const App = {
       }
       this.setSyncStatus('同步中...', 'info');
       const r = await window.sshAPI.syncMySQLToSQLite();
-      this.setSyncStatus(r.success ? `✓ 已同步 ${r.count} 条连接` : '✕ ' + r.error, r.success ? 'success' : 'error');
+      this.setSyncStatus(r.success ? `✓ 已同步 ${r.count} 条连接` : '✗ ' + r.error, r.success ? 'success' : 'error');
       if (r.success) { await this.loadConnections(); this.renderSidebar(); }
     });
 
@@ -2231,7 +2270,7 @@ const App = {
       });
       if (result.canceled || !result.filePath) return;
       const r = await window.sshAPI.exportData(result.filePath);
-      this.setIOStatus(r.success ? '✓ 导出成功：' + result.filePath : '✕ ' + r.error, r.success ? 'success' : 'error');
+      this.setIOStatus(r.success ? '✓ 导出成功：' + result.filePath : '✗ ' + r.error, r.success ? 'success' : 'error');
     });
 
     document.getElementById('btn-import-data').addEventListener('click', async () => {
@@ -2246,7 +2285,7 @@ const App = {
         await this.loadConnections();
         this.renderSidebar();
       } else {
-        this.setIOStatus('✕ ' + r.error, 'error');
+        this.setIOStatus('✗ ' + r.error, 'error');
       }
     });
 

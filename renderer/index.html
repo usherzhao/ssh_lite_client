@@ -8,16 +8,52 @@
   <link rel="stylesheet" href="../node_modules/xterm/css/xterm.css" />
 </head>
 <body>
+  <!-- SVG 图标精灵 -->
+  <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="icon-plus" viewBox="0 0 16 16"><path d="M8 2v12M2 8h12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="icon-close" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="icon-minimize" viewBox="0 0 16 16"><path d="M3 8h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="icon-maximize" viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/></symbol>
+    <symbol id="icon-database" viewBox="0 0 16 16"><ellipse cx="8" cy="4" rx="5" ry="2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M3 4v4c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8v4c0 1.1 2.2 2 5 2s5-.9 5-2V8" fill="none" stroke="currentColor" stroke-width="1.2"/></symbol>
+    <symbol id="icon-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10 10l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="icon-home" viewBox="0 0 16 16"><path d="M3 8l5-5 5 5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 7.5V13h3v-3h2v3h3V7.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-arrow-up" viewBox="0 0 16 16"><path d="M8 12V4M4 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-arrow-down" viewBox="0 0 16 16"><path d="M8 4v8M4 9l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-refresh" viewBox="0 0 16 16"><path d="M2.5 8a5.5 5.5 0 0 1 9.3-4M13.5 8a5.5 5.5 0 0 1-9.3 4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M12 1.5v3h3M4 14.5v-3H1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-copy" viewBox="0 0 16 16"><rect x="5" y="5" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M3 11V3a1 1 0 0 1 1-1h8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+    <symbol id="icon-folder-plus" viewBox="0 0 16 16"><path d="M2 3h4l2 2h6v8H2V3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 7.5v3M6.5 9h3" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
+    <symbol id="icon-list" viewBox="0 0 16 16"><path d="M5 3h8M5 8h8M5 13h8M3 3h.01M3 8h.01M3 13h.01" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+    <symbol id="icon-chevron-down" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-chevron-up" viewBox="0 0 16 16"><path d="M4 10l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-trash" viewBox="0 0 16 16"><path d="M3 4h10M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M4 4l.7 8.5a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9L12 4" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M6 7v4M10 7v4" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
+    <symbol id="icon-send" viewBox="0 0 16 16"><path d="M3 2l11 6-11 6V2z" fill="currentColor"/></symbol>
+    <symbol id="icon-ban" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M3.8 12.2L12.2 3.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+    <symbol id="icon-settings" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+    <symbol id="icon-terminal" viewBox="0 0 16 16"><path d="M2 3h12v10H2V3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M5 7l2 2-2 2M9 11h3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-keyboard" viewBox="0 0 16 16"><rect x="1" y="4" width="14" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M4 7h1M7 7h2M10 7h1M4 10h7" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
+    <symbol id="icon-window" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2 6h12" fill="none" stroke="currentColor" stroke-width="1"/></symbol>
+    <symbol id="icon-folder" viewBox="0 0 16 16"><path d="M2 3h4l2 2h6v8H2V3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-upload" viewBox="0 0 16 16"><path d="M8 10V3M5 5l3-3 3 3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="icon-download" viewBox="0 0 16 16"><path d="M8 3v7M5 8l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="icon-edit" viewBox="0 0 16 16"><path d="M11.5 2.5l2 2L5 13H3v-2z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-split" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 2v12" fill="none" stroke="currentColor" stroke-width="1.2"/></symbol>
+    <symbol id="icon-sftp" viewBox="0 0 16 16"><path d="M2 3h4l2 2h6v8H2V3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 9l2 2 2-2" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 7v4" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
+    <symbol id="icon-link" viewBox="0 0 16 16"><path d="M6.5 9.5l3-3M5 11a2.5 2.5 0 0 1 0-3.5L7.5 5a2.5 2.5 0 0 1 3.5 3.5L9.5 10" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+    <symbol id="icon-bolt" viewBox="0 0 16 16"><path d="M9 1L4 9h4l-1 6 5-8H8z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5L13 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-spinner" viewBox="0 0 16 16"><path d="M8 1.5a6.5 6.5 0 0 1 6.5 6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  </svg>
+
   <!-- 自定义标题栏（可拖动） -->
   <div class="titlebar" id="titlebar">
     <div class="titlebar-drag">
-      <span class="app-logo-title">⚡ SSH Client</span>
+      <span class="app-logo-title"><svg class="svg-icon" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"><use href="#icon-bolt"/></svg>SSH Client</span>
     </div>
     <div class="titlebar-btns">
-      <button class="titlebar-btn" id="btn-db-settings" title="数据库设置">🗄</button>
-      <button class="titlebar-btn win-btn minimize" id="btn-minimize" title="最小化">─</button>
-      <button class="titlebar-btn win-btn maximize" id="btn-maximize" title="最大化">□</button>
-      <button class="titlebar-btn win-btn close" id="btn-close" title="关闭">✕</button>
+      <button class="titlebar-btn" id="btn-db-settings" title="数据库设置"><svg class="svg-icon"><use href="#icon-database"/></svg></button>
+      <button class="titlebar-btn win-btn minimize" id="btn-minimize" title="最小化"><svg class="svg-icon"><use href="#icon-minimize"/></svg></button>
+      <button class="titlebar-btn win-btn maximize" id="btn-maximize" title="最大化"><svg class="svg-icon"><use href="#icon-maximize"/></svg></button>
+      <button class="titlebar-btn win-btn close" id="btn-close" title="关闭"><svg class="svg-icon"><use href="#icon-close"/></svg></button>
     </div>
   </div>
 
@@ -27,7 +63,7 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <span class="sidebar-title">连接列表</span>
-        <button class="btn-icon" id="btn-new-conn" title="新建连接">＋</button>
+        <button class="btn-icon" id="btn-new-conn" title="新建连接"><svg class="svg-icon"><use href="#icon-plus"/></svg></button>
       </div>
 
       <div class="search-box">
@@ -57,19 +93,41 @@
       <div class="tab-bar" id="tab-bar">
         <div class="tabs-wrapper" id="tabs-wrapper"></div>
         <div class="tab-actions">
-          <button class="btn-icon" id="btn-add-tab" title="新建标签页">＋</button>
-          <button class="btn-icon" id="btn-split-h" title="分屏显示">⬛</button>
-          <button class="btn-icon" id="btn-multi-win" title="新建窗口">🗗</button>
-          <button class="btn-icon" id="btn-term-settings" title="终端外观设置">⚙</button>
-          <button class="btn-icon" id="btn-cmd-input" title="指令发送窗口">⌨</button>
+          <button class="btn-icon" id="btn-add-tab" title="新建标签页"><svg class="svg-icon"><use href="#icon-plus"/></svg></button>
+          <button class="btn-icon" id="btn-split-h" title="分屏显示"><svg class="svg-icon"><use href="#icon-split"/></svg></button>
+          <button class="btn-icon" id="btn-multi-win" title="新建窗口"><svg class="svg-icon"><use href="#icon-window"/></svg></button>
+          <button class="btn-icon" id="btn-term-settings" title="终端外观设置"><svg class="svg-icon"><use href="#icon-settings"/></svg></button>
+          <button class="btn-icon" id="btn-cmd-input" title="指令发送窗口"><svg class="svg-icon"><use href="#icon-keyboard"/></svg></button>
         </div>
+      </div>
+
+      <!-- 工具栏 -->
+      <div class="toolbar" id="toolbar">
+        <button class="toolbar-btn" id="btn-tb-sftp" title="SFTP 文件管理">
+          <svg class="svg-icon"><use href="#icon-sftp"/></svg>
+          <span class="toolbar-btn-label">SFTP</span>
+        </button>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn" id="btn-tb-cmd" title="指令发送">
+          <svg class="svg-icon"><use href="#icon-keyboard"/></svg>
+          <span class="toolbar-btn-label">指令</span>
+        </button>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn" id="btn-tb-quick-cmd" title="快捷指令">
+          <svg class="svg-icon"><use href="#icon-terminal"/></svg>
+          <span class="toolbar-btn-label">快捷</span>
+        </button>
+        <div class="toolbar-spacer"></div>
+        <button class="toolbar-btn" id="btn-tb-settings" title="设置">
+          <svg class="svg-icon"><use href="#icon-settings"/></svg>
+        </button>
       </div>
 
       <!-- 终端容器 -->
       <div class="terminal-area" id="terminal-area">
         <div class="welcome-screen" id="welcome-screen">
           <div class="welcome-content">
-            <div class="welcome-icon">⚡</div>
+            <div class="welcome-icon"><svg class="welcome-icon-svg"><use href="#icon-bolt"/></svg></div>
             <h1>SSH Client</h1>
             <p>从左侧选择已保存的连接，或点击"新建连接"开始</p>
             <button class="btn-primary" id="btn-welcome-new">新建 SSH 连接</button>
@@ -82,16 +140,16 @@
       <div class="cmd-input-panel" id="cmd-input-panel" style="display:none;">
         <div class="cmd-input-header">
           <div class="cmd-input-title">
-            <span>⌨</span>
+            <svg class="svg-icon svg-icon-sm"><use href="#icon-keyboard"/></svg>
             <span>指令发送</span>
             <span class="cmd-target-label" id="cmd-target-label"></span>
           </div>
           <div class="cmd-input-actions">
-            <button class="btn-icon cmd-btn" id="btn-cmd-clear-history" title="清空历史">🗑</button>
-            <button class="btn-icon cmd-btn" id="btn-cmd-clear" title="清空输入">⊘</button>
-            <button class="btn-icon cmd-btn" id="btn-cmd-send" title="发送 (Enter)">▶</button>
-            <button class="btn-icon cmd-btn" id="btn-cmd-toggle" title="折叠/展开">▼</button>
-            <button class="btn-icon cmd-btn" id="btn-cmd-close" title="关闭">✕</button>
+            <button class="btn-icon cmd-btn" id="btn-cmd-clear-history" title="清空历史"><svg class="svg-icon"><use href="#icon-trash"/></svg></button>
+            <button class="btn-icon cmd-btn" id="btn-cmd-clear" title="清空输入"><svg class="svg-icon"><use href="#icon-ban"/></svg></button>
+            <button class="btn-icon cmd-btn" id="btn-cmd-send" title="发送 (Enter)"><svg class="svg-icon"><use href="#icon-send"/></svg></button>
+            <button class="btn-icon cmd-btn" id="btn-cmd-toggle" title="折叠/展开"><svg class="svg-icon"><use href="#icon-chevron-down"/></svg></button>
+            <button class="btn-icon cmd-btn" id="btn-cmd-close" title="关闭"><svg class="svg-icon"><use href="#icon-close"/></svg></button>
           </div>
         </div>
         <div class="cmd-history-list" id="cmd-history-list">
@@ -105,25 +163,37 @@
       <!-- SFTP 面板 -->
       <div class="sftp-panel" id="sftp-panel" style="display:none;">
         <div class="sftp-panel-header">
-          <div class="sftp-panel-title">
-            <span class="sftp-icon">📁</span>
-            <span>SFTP 文件管理</span>
-            <span class="sftp-host-label" id="sftp-host-label"></span>
-          </div>
-          <div class="sftp-panel-actions">
-            <div class="sftp-path-input-container">
-              <input type="text" class="sftp-path-input" id="sftp-path-input" value="/" placeholder="输入路径..." />
-              <button class="btn-icon sftp-path-btn" id="btn-sftp-copy-path" title="复制路径">📋</button>
+          <div class="sftp-panel-row">
+            <div class="sftp-panel-title">
+              <svg class="svg-icon svg-icon-sm"><use href="#icon-folder"/></svg>
+              <span>SFTP</span>
+              <span class="sftp-host-label" id="sftp-host-label"></span>
             </div>
-            <button class="btn-icon sftp-btn" id="btn-sftp-home" title="根目录">⌂</button>
-            <button class="btn-icon sftp-btn" id="btn-sftp-up" title="上级目录">↑</button>
-            <button class="btn-icon sftp-btn" id="btn-sftp-refresh" title="刷新">↻</button>
-            <button class="btn-icon sftp-btn" id="btn-sftp-upload" title="上传文件">⬆</button>
-            <button class="btn-icon sftp-btn" id="btn-sftp-download" title="下载选中文件" disabled>⬇</button>
-            <button class="btn-icon sftp-btn" id="btn-sftp-mkdir" title="新建目录">📂+</button>
-            <button class="btn-icon sftp-btn sftp-task-toggle-btn" id="btn-sftp-tasks" title="传输任务">📋<span class="sftp-task-badge" id="sftp-task-badge" style="display:none;">0</span></button>
-            <button class="btn-icon sftp-btn" id="btn-sftp-toggle" title="折叠/展开 SFTP">▼</button>
-            <button class="btn-icon sftp-btn" id="btn-sftp-close" title="关闭 SFTP">✕</button>
+            <div class="sftp-panel-actions">
+              <button class="btn-icon sftp-btn" id="btn-sftp-toggle" title="折叠/展开 SFTP"><svg class="svg-icon"><use href="#icon-chevron-down"/></svg></button>
+              <button class="btn-icon sftp-btn" id="btn-sftp-close" title="关闭 SFTP"><svg class="svg-icon"><use href="#icon-close"/></svg></button>
+            </div>
+          </div>
+          <div class="sftp-panel-row">
+            <div class="sftp-path-row">
+              <div class="sftp-path-input-container">
+                <input type="text" class="sftp-path-input" id="sftp-path-input" value="/" placeholder="输入路径..." />
+                <button class="sftp-path-btn" id="btn-sftp-copy-path" title="复制路径"><svg class="svg-icon"><use href="#icon-copy"/></svg></button>
+              </div>
+              <div class="sftp-action-group">
+                <button class="btn-icon sftp-btn" id="btn-sftp-home" title="根目录"><svg class="svg-icon"><use href="#icon-home"/></svg></button>
+                <button class="btn-icon sftp-btn" id="btn-sftp-up" title="上级目录"><svg class="svg-icon"><use href="#icon-arrow-up"/></svg></button>
+                <button class="btn-icon sftp-btn" id="btn-sftp-refresh" title="刷新"><svg class="svg-icon"><use href="#icon-refresh"/></svg></button>
+              </div>
+              <div class="sftp-action-sep"></div>
+              <div class="sftp-action-group">
+                <button class="btn-icon sftp-btn" id="btn-sftp-upload" title="上传文件"><svg class="svg-icon"><use href="#icon-upload"/></svg></button>
+                <button class="btn-icon sftp-btn" id="btn-sftp-download" title="下载选中文件" disabled><svg class="svg-icon"><use href="#icon-download"/></svg></button>
+                <button class="btn-icon sftp-btn" id="btn-sftp-mkdir" title="新建目录"><svg class="svg-icon"><use href="#icon-folder-plus"/></svg></button>
+              </div>
+              <div class="sftp-action-sep"></div>
+              <button class="btn-icon sftp-btn sftp-task-toggle-btn" id="btn-sftp-tasks" title="传输任务"><svg class="svg-icon"><use href="#icon-list"/></svg><span class="sftp-task-badge" id="sftp-task-badge" style="display:none;">0</span></button>
+            </div>
           </div>
         </div>
         
@@ -144,8 +214,8 @@
           <div class="sftp-task-dialog-header">
             <span>传输任务</span>
             <div class="sftp-task-dialog-actions">
-              <button class="btn-icon sftp-btn" id="btn-sftp-task-clear" title="清空完成任务">🗑</button>
-              <button class="btn-icon sftp-btn" id="btn-sftp-task-close" title="关闭">✕</button>
+              <button class="btn-icon sftp-btn" id="btn-sftp-task-clear" title="清空完成任务"><svg class="svg-icon"><use href="#icon-trash"/></svg></button>
+              <button class="btn-icon sftp-btn" id="btn-sftp-task-close" title="关闭"><svg class="svg-icon"><use href="#icon-close"/></svg></button>
             </div>
           </div>
           <div class="sftp-task-dialog-body" id="sftp-task-items">
@@ -161,12 +231,27 @@
             <select id="quick-cmd-category" class="quick-cmd-category-select">
               <option value="">全部</option>
             </select>
-            <button class="btn-icon" id="btn-add-quick-cmd" title="新增指令">＋</button>
-            <button class="btn-icon" id="btn-toggle-quick-cmd" title="折叠/展开">▼</button>
+            <button class="btn-icon" id="btn-add-quick-cmd" title="新增指令"><svg class="svg-icon"><use href="#icon-plus"/></svg></button>
+            <button class="btn-icon" id="btn-toggle-quick-cmd" title="折叠/展开"><svg class="svg-icon"><use href="#icon-chevron-down"/></svg></button>
           </div>
         </div>
         <div class="quick-cmd-list" id="quick-cmd-list">
           <!-- 动态渲染 -->
+        </div>
+      </div>
+
+      <!-- 状态栏 -->
+      <div class="statusbar" id="statusbar">
+        <div class="statusbar-item" id="statusbar-conn">
+          <div class="statusbar-dot" id="statusbar-dot"></div>
+          <span id="statusbar-conn-info">未连接</span>
+        </div>
+        <div class="statusbar-item" id="statusbar-encoding">
+          <span>UTF-8</span>
+        </div>
+        <div class="statusbar-spacer"></div>
+        <div class="statusbar-item" id="statusbar-tabs-count">
+          <span>标签: 0</span>
         </div>
       </div>
     </div>
@@ -177,7 +262,7 @@
     <div class="modal" id="modal-conn">
       <div class="modal-header">
         <span id="modal-title">新建 SSH 连接</span>
-        <button class="btn-icon" id="modal-close">✕</button>
+        <button class="btn-icon" id="modal-close"><svg class="svg-icon"><use href="#icon-close"/></svg></button>
       </div>
       <div class="modal-body">
         <div class="form-row">
@@ -270,7 +355,7 @@
     <div class="modal modal-wide" id="modal-manage">
       <div class="modal-header">
         <span>管理已保存连接</span>
-        <button class="btn-icon" id="manage-close">✕</button>
+        <button class="btn-icon" id="manage-close"><svg class="svg-icon"><use href="#icon-close"/></svg></button>
       </div>
       <div class="modal-body">
         <table class="conn-table" id="conn-table">
@@ -288,7 +373,7 @@
     <div class="modal" id="modal-quick-cmd">
       <div class="modal-header">
         <span id="quick-cmd-modal-title">新建快捷指令</span>
-        <button class="btn-icon" id="quick-cmd-modal-close">✕</button>
+        <button class="btn-icon" id="quick-cmd-modal-close"><svg class="svg-icon"><use href="#icon-close"/></svg></button>
       </div>
       <div class="modal-body">
         <div class="form-row">
@@ -322,7 +407,7 @@
     <div class="modal modal-wide" id="modal-db">
       <div class="modal-header">
         <span>数据库设置</span>
-        <button class="btn-icon" id="db-modal-close">✕</button>
+        <button class="btn-icon" id="db-modal-close"><svg class="svg-icon"><use href="#icon-close"/></svg></button>
       </div>
       <div class="modal-body">
         <!-- 当前状态 -->
@@ -393,7 +478,7 @@
     <div class="modal" style="max-width:360px;" id="modal-add-group">
       <div class="modal-header">
         <span>新建分组</span>
-        <button class="btn-icon" id="add-group-close">✕</button>
+        <button class="btn-icon" id="add-group-close"><svg class="svg-icon"><use href="#icon-close"/></svg></button>
       </div>
       <div class="modal-body">
         <div class="form-row">
@@ -415,7 +500,7 @@
     <div class="modal" style="max-width:420px;" id="modal-term-settings">
       <div class="modal-header">
         <span>终端外观设置</span>
-        <button class="btn-icon" id="term-settings-close">✕</button>
+        <button class="btn-icon" id="term-settings-close"><svg class="svg-icon"><use href="#icon-close"/></svg></button>
       </div>
       <div class="modal-body">
         <div class="form-row">
@@ -459,7 +544,7 @@
         <div class="term-preview-box" id="term-preview-box">
           AaBbCcDd 0123456789 $ git log --oneline<br>
           [root@server ~]# ls -la /var/log/<br>
-          <span style="color:#22c55e">✓ 连接成功</span> &nbsp;<span style="color:#ef4444">✕ 连接失败</span>
+          <span style="color:#22c55e">✓ 连接成功</span> &nbsp;<span style="color:#ef4444">✗ 连接失败</span>
         </div>
       </div>
       <div class="modal-footer">
