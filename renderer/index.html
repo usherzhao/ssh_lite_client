@@ -121,22 +121,9 @@
             <button class="btn-icon sftp-btn" id="btn-sftp-upload" title="上传文件">⬆</button>
             <button class="btn-icon sftp-btn" id="btn-sftp-download" title="下载选中文件" disabled>⬇</button>
             <button class="btn-icon sftp-btn" id="btn-sftp-mkdir" title="新建目录">📂+</button>
+            <button class="btn-icon sftp-btn sftp-task-toggle-btn" id="btn-sftp-tasks" title="传输任务">📋<span class="sftp-task-badge" id="sftp-task-badge" style="display:none;">0</span></button>
             <button class="btn-icon sftp-btn" id="btn-sftp-toggle" title="折叠/展开 SFTP">▼</button>
             <button class="btn-icon sftp-btn" id="btn-sftp-close" title="关闭 SFTP">✕</button>
-          </div>
-        </div>
-        
-        <!-- 上传下载进度列表 -->
-        <div class="sftp-task-list" id="sftp-task-list" style="display:none;">
-          <div class="sftp-task-list-header">
-            <span>传输任务</span>
-            <div class="sftp-task-actions">
-              <button class="btn-icon sftp-btn" id="btn-sftp-task-clear" title="清空完成任务">🗑</button>
-              <button class="btn-icon sftp-btn" id="btn-sftp-task-close" title="关闭任务列表">✕</button>
-            </div>
-          </div>
-          <div class="sftp-task-items" id="sftp-task-items">
-            <!-- 任务项将通过 JS 动态添加 -->
           </div>
         </div>
         
@@ -150,6 +137,21 @@
       </div>
 
       <!-- SFTP 右键菜单（动态创建，此处仅占位） -->
+
+      <!-- 传输任务弹窗 -->
+      <div class="sftp-task-overlay" id="sftp-task-overlay" style="display:none;">
+        <div class="sftp-task-dialog">
+          <div class="sftp-task-dialog-header">
+            <span>传输任务</span>
+            <div class="sftp-task-dialog-actions">
+              <button class="btn-icon sftp-btn" id="btn-sftp-task-clear" title="清空完成任务">🗑</button>
+              <button class="btn-icon sftp-btn" id="btn-sftp-task-close" title="关闭">✕</button>
+            </div>
+          </div>
+          <div class="sftp-task-dialog-body" id="sftp-task-items">
+          </div>
+        </div>
+      </div>
 
       <!-- 快捷指令区 -->
       <div class="quick-cmd-bar" id="quick-cmd-bar">

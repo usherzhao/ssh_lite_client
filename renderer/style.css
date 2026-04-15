@@ -1206,40 +1206,80 @@ body {
 .sftp-context-menu-item.danger { color: var(--red); }
 .sftp-context-menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
 
-/* ===== SFTP 传输任务列表 ===== */
-.sftp-task-list {
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border);
-  transition: all .2s;
+/* ===== SFTP 传输任务弹窗 ===== */
+.sftp-task-toggle-btn {
+  position: relative;
 }
 
-.sftp-task-list-header {
+.sftp-task-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  min-width: 14px;
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  border-radius: 7px;
+  padding: 0 3px;
+}
+
+.sftp-task-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sftp-task-dialog {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 520px;
+  max-width: 90vw;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+
+.sftp-task-dialog-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
+  padding: 10px 16px;
   background: var(--bg-deep);
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  border-radius: 8px 8px 0 0;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
 }
 
-.sftp-task-actions {
+.sftp-task-dialog-actions {
   display: flex;
   gap: 4px;
 }
 
-.sftp-task-items {
-  max-height: 200px;
+.sftp-task-dialog-body {
+  flex: 1;
   overflow-y: auto;
-  min-height: 20px;
+  min-height: 80px;
+  max-height: calc(70vh - 44px);
 }
 
 .sftp-task-item {
   display: flex;
   align-items: flex-start;
-  padding: 8px 12px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--border);
   font-size: 11px;
   line-height: 1.3;

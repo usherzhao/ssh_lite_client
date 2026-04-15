@@ -1705,7 +1705,7 @@ const App = {
     };
     
     this.sftp.tasks.push(task);
-    this.sftpShowTaskList(true);
+    this.sftpUpdateTaskBadge();
     this.sftpRenderTasks();
     return task.id;
   },
@@ -1768,9 +1768,22 @@ const App = {
   
   // 显示/隐藏任务列表
   sftpShowTaskList(show) {
-    const list = document.getElementById('sftp-task-list');
-    if (list) {
-      list.style.display = show ? 'block' : 'none';
+    const overlay = document.getElementById('sftp-task-overlay');
+    if (overlay) {
+      overlay.style.display = show ? 'flex' : 'none';
+      if (show) this.sftpRenderTasks();
+    }
+  },
+  
+  sftpUpdateTaskBadge() {
+    const badge = document.getElementById('sftp-task-badge');
+    if (!badge) return;
+    const activeCount = this.sftp.tasks.filter(t => t.status === 'pending' || t.status === 'progress').length;
+    if (activeCount > 0) {
+      badge.textContent = activeCount;
+      badge.style.display = 'inline';
+    } else {
+      badge.style.display = 'none';
     }
   },
   
@@ -1778,6 +1791,8 @@ const App = {
   sftpRenderTasks() {
     const container = document.getElementById('sftp-task-items');
     if (!container) return;
+    
+    this.sftpUpdateTaskBadge();
     
     container.innerHTML = '';
     
@@ -2255,6 +2270,18 @@ const App = {
     // 任务列表按钮
     document.getElementById('btn-sftp-task-clear').addEventListener('click', () => this.sftpClearCompletedTasks());
     document.getElementById('btn-sftp-task-close').addEventListener('click', () => this.sftpShowTaskList(false));
+    document.getElementById('btn-sftp-tasks').addEventListener('click', () => {
+      const overlay = document.getElementById('sftp-task-overlay');
+      if (overlay) {
+        const isVisible = overlay.style.display !== 'none';
+        this.sftpShowTaskList(!isVisible);
+      }
+    });
+    document.getElementById('sftp-task-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'sftp-task-overlay') {
+        this.sftpShowTaskList(false);
+      }
+    });
     
     // 路径输入框和复制按钮
     const pathInput = document.getElementById('sftp-path-input');
