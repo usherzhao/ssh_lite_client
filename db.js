@@ -495,53 +495,69 @@ class DBManager {
     this.dbType = 'sqlite';   // 'sqlite' | 'mysql'
     this.mysqlConfig = null;
     this.configPath = null;
+    this.initPromise = null;
   }
 
   async init() {
-    // 读取保存的DB配置
-    const userDataDir = app ? app.getPath('userData') : path.join(__dirname, 'data');
-    if (!fs.existsSync(userDataDir)) fs.mkdirSync(userDataDir, { recursive: true });
-    this.configPath = path.join(userDataDir, 'db_config.json');
+    if (this.initPromise) return this.initPromise;
+    this.initPromise = (async () => {
+      // 读取保存的DB配置
+      const userDataDir = app ? app.getPath('userData') : path.join(__dirname, 'data');
+      if (!fs.existsSync(userDataDir)) fs.mkdirSync(userDataDir, { recursive: true });
+      this.configPath = path.join(userDataDir, 'db_config.json');
 
-    let savedConfig = { dbType: 'sqlite', mysqlConfig: null };
-    if (fs.existsSync(this.configPath)) {
-      try { savedConfig = JSON.parse(fs.readFileSync(this.configPath, 'utf8')); } catch(e) {}
-    }
+      let savedConfig = { dbType: 'sqlite', mysqlConfig: null, winscpPath: '' };
+      if (fs.existsSync(this.configPath)) {
+        try { savedConfig = JSON.parse(fs.readFileSync(this.configPath, 'utf8')); } catch(e) {}
+      }
 
-    // 始终初始化 SQLite
-    this.sqliteDB = new SQLiteDB();
-    await this.sqliteDB.init();
+      // 始终初始化 SQLite
+      this.sqliteDB = new SQLiteDB();
+      await this.sqliteDB.init();
 
-    this.dbType = savedConfig.dbType || 'sqlite';
-    this.mysqlConfig = savedConfig.mysqlConfig;
+      this.dbType = savedConfig.dbType || 'sqlite';
+      this.mysqlConfig = savedConfig.mysqlConfig;
+      this.winscpPath = savedConfig.winscpPath || '';
 
-    if (this.dbType === 'mysql' && this.mysqlConfig) {
-      try {
-        this.mysqlDB = new MySQLDB(this.mysqlConfig);
-        await this.mysqlDB.init();
-        this.current = this.mysqlDB;
-      } catch (e) {
-        console.error('MySQL init failed, fallback to SQLite:', e.message);
-        this.dbType = 'sqlite';
+      if (this.dbType === 'mysql' && this.mysqlConfig) {
+        try {
+          this.mysqlDB = new MySQLDB(this.mysqlConfig);
+          await this.mysqlDB.init();
+          this.current = this.mysqlDB;
+        } catch (e) {
+          console.error('MySQL init failed, fallback to SQLite:', e.message);
+          this.dbType = 'sqlite';
+          this.current = this.sqliteDB;
+        }
+      } else {
         this.current = this.sqliteDB;
       }
-    } else {
-      this.current = this.sqliteDB;
-    }
+    })();
+    return this.initPromise;
   }
 
   _saveConfig() {
     if (!this.configPath) return;
     fs.writeFileSync(this.configPath, JSON.stringify({
       dbType: this.dbType,
-      mysqlConfig: this.mysqlConfig
+      mysqlConfig: this.mysqlConfig,
+      winscpPath: this.winscpPath || ''
     }, null, 2));
   }
 
   getDBType() { return this.dbType; }
   getMysqlConfig() { return this.mysqlConfig; }
+  getWinSCPPath() { return this.winscpPath || ''; }
+
+  async setWinSCPPath(winscpPath) {
+    await this.init();
+    this.winscpPath = winscpPath || '';
+    this._saveConfig();
+    return { success: true, winscpPath: this.winscpPath };
+  }
 
   async switchToMySQL(config) {
+    await this.init();
     try {
       const newDB = new MySQLDB(config);
       await newDB.init();
@@ -557,7 +573,8 @@ class DBManager {
     }
   }
 
-  switchToSQLite() {
+  async switchToSQLite() {
+    await this.init();
     this.dbType = 'sqlite';
     this.current = this.sqliteDB;
     this._saveConfig();
@@ -607,16 +624,16 @@ class DBManager {
   }
 
   // ===== 代理所有DB操作 =====
-  async getGroups() { return Promise.resolve(this.current.getGroups()); }
-  async saveGroup(name) { return Promise.resolve(this.current.saveGroup(name)); }
-  async deleteGroup(name) { return Promise.resolve(this.current.deleteGroup(name)); }
-  async getConnections() { return Promise.resolve(this.current.getConnections()); }
-  async saveConnection(conn) { return Promise.resolve(this.current.saveConnection(conn)); }
-  async deleteConnection(id) { return Promise.resolve(this.current.deleteConnection(id)); }
-  async reorderConnections(orderedIds) { return Promise.resolve(this.current.reorderConnections(orderedIds)); }
-  async getQuickCommands() { return Promise.resolve(this.current.getQuickCommands()); }
-  async saveQuickCommand(cmd) { return Promise.resolve(this.current.saveQuickCommand(cmd)); }
-  async deleteQuickCommand(id) { return Promise.resolve(this.current.deleteQuickCommand(id)); }
+  async getGroups() { await this.init(); return Promise.resolve(this.current.getGroups()); }
+  async saveGroup(name) { await this.init(); return Promise.resolve(this.current.saveGroup(name)); }
+  async deleteGroup(name) { await this.init(); return Promise.resolve(this.current.deleteGroup(name)); }
+  async getConnections() { await this.init(); return Promise.resolve(this.current.getConnections()); }
+  async saveConnection(conn) { await this.init(); return Promise.resolve(this.current.saveConnection(conn)); }
+  async deleteConnection(id) { await this.init(); return Promise.resolve(this.current.deleteConnection(id)); }
+  async reorderConnections(orderedIds) { await this.init(); return Promise.resolve(this.current.reorderConnections(orderedIds)); }
+  async getQuickCommands() { await this.init(); return Promise.resolve(this.current.getQuickCommands()); }
+  async saveQuickCommand(cmd) { await this.init(); return Promise.resolve(this.current.saveQuickCommand(cmd)); }
+  async deleteQuickCommand(id) { await this.init(); return Promise.resolve(this.current.deleteQuickCommand(id)); }
 }
 
 const dbManager = new DBManager();

@@ -452,6 +452,22 @@
 
         <hr class="db-divider" />
 
+        <div class="section-title">WinSCP 集成</div>
+        <div class="form-row">
+          <label>WinSCP 路径</label>
+          <div class="input-group">
+            <input type="text" id="winscp-path" placeholder="选择 WinSCP.exe 路径" />
+            <button class="btn-sm" id="btn-browse-winscp">浏览</button>
+            <button class="btn-sm" id="btn-save-winscp">保存</button>
+          </div>
+        </div>
+        <div class="db-sync-btns">
+          <button class="btn-secondary" id="btn-open-current-winscp">打开当前连接 SFTP</button>
+        </div>
+        <div class="conn-status" id="winscp-status"></div>
+
+        <hr class="db-divider" />
+
         <!-- 数据同步 -->
         <div class="section-title">数据同步</div>
         <div class="db-sync-btns">

@@ -1,7 +1,8 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const net = require('net');
-const { Client } = require('ssh2');
+const fs = require('fs');
+const os = require('os');
+const { spawn } = require('child_process');
 const { dbManager } = require('./db');
 
 // 存储所有 SSH 连接实例
@@ -10,6 +11,43 @@ const sshConnections = new Map();
 const childWindows = new Map();
 
 let mainWindow;
+const winscpTempDir = path.join(os.tmpdir(), 'ssh-lite-client-winscp');
+
+function ensureDirSync(dirPath) {
+  if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
+}
+
+function resolveWinSCPExecutable(winscpPath) {
+  const raw = (winscpPath || '').trim();
+  if (!raw) {
+    return {
+      success: false,
+      error: '请先在设置中配置 WinSCP 路径'
+    };
+  }
+  const resolved = path.isAbsolute(raw) ? raw : path.resolve(raw);
+  if (!fs.existsSync(resolved)) {
+    return {
+      success: false,
+      error: 'WinSCP 路径不存在'
+    };
+  }
+  return { success: true, path: resolved };
+}
+
+function createTempPrivateKeyFile(privateKey) {
+  ensureDirSync(winscpTempDir);
+  const keyPath = path.join(winscpTempDir, `winscp_key_${Date.now()}_${Math.random().toString(36).slice(2)}.pem`);
+  fs.writeFileSync(keyPath, privateKey, 'utf8');
+  return keyPath;
+}
+
+function cleanupTempPrivateKeyFiles() {
+  if (!fs.existsSync(winscpTempDir)) return;
+  try {
+    fs.rmSync(winscpTempDir, { recursive: true, force: true });
+  } catch (e) {}
+}
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -107,7 +145,59 @@ ipcMain.handle('delete-quick-command', async (event, id) => {
 // ===================== 数据库设置 IPC =====================
 
 ipcMain.handle('get-db-config', () => {
-  return { dbType: dbManager.getDBType(), mysqlConfig: dbManager.getMysqlConfig() };
+  return {
+    dbType: dbManager.getDBType(),
+    mysqlConfig: dbManager.getMysqlConfig(),
+    winscpPath: dbManager.getWinSCPPath()
+  };
+});
+
+ipcMain.handle('save-winscp-path', async (event, winscpPath) => {
+  const trimmed = (winscpPath || '').trim();
+  if (!trimmed) {
+    return dbManager.setWinSCPPath('');
+  }
+  const resolved = path.isAbsolute(trimmed) ? trimmed : path.resolve(trimmed);
+  if (!fs.existsSync(resolved)) {
+    return { success: false, error: 'WinSCP 路径不存在' };
+  }
+  return dbManager.setWinSCPPath(resolved);
+});
+
+ipcMain.handle('open-in-winscp', async (event, conn) => {
+  try {
+    await dbManager.init();
+    const resolved = resolveWinSCPExecutable(dbManager.getWinSCPPath());
+    if (!resolved.success) return resolved;
+    if (!conn || !conn.host || !conn.username) {
+      return { success: false, error: '连接信息不完整' };
+    }
+
+    const sessionUrl = `sftp://${encodeURIComponent(conn.username)}@${conn.host}:${conn.port || 22}/`;
+    const args = [sessionUrl, '/newinstance'];
+
+    if (conn.authType === 'privateKey') {
+      if (!conn.privateKey) {
+        return { success: false, error: '当前连接未配置私钥内容' };
+      }
+      const keyPath = createTempPrivateKeyFile(conn.privateKey);
+      args.push(`/privatekey=${keyPath}`);
+      if (conn.passphrase) args.push(`/passphrase=${conn.passphrase}`);
+    } else if (conn.password) {
+      args.push(`/password=${conn.password}`);
+    }
+
+    const child = spawn(resolved.path, args, {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    });
+    child.unref();
+
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 });
 
 ipcMain.handle('test-mysql', async (event, config) => {
@@ -163,6 +253,8 @@ ipcMain.handle('get-encrypt-key-status', () => {
 // ===================== SSH 连接 IPC =====================
 
 ipcMain.handle('ssh-connect', async (event, { sessionId, config }) => {
+  const { Client } = require('ssh2');
+  const net = require('net');
   return new Promise((resolve) => {
     const conn = new Client();
     const sender = event.sender;
@@ -475,13 +567,19 @@ ipcMain.on('forward-ssh-data', (event, { targetSessionId, data }) => {
 
 // ===================== 应用生命周期 =====================
 
-app.whenReady().then(async () => {
-  await dbManager.init();
+app.whenReady().then(() => {
   createMainWindow();
+  dbManager.init().catch((e) => {
+    console.error('DB init failed:', e.message);
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
   });
+});
+
+app.on('before-quit', () => {
+  cleanupTempPrivateKeyFiles();
 });
 
 app.on('window-all-closed', () => {

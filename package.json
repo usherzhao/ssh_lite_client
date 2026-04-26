@@ -6,7 +6,8 @@
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --win --x64",
-    "build:dir": "electron-builder --win --x64 --dir"
+    "build:dir": "electron-builder --win --x64 --dir",
+    "pack": "electron-builder --dir --config.compression=store"
   },
   "build": {
     "appId": "com.sshclient.app",

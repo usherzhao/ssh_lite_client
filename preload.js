@@ -29,6 +29,8 @@ contextBridge.exposeInMainWorld('sshAPI', {
   syncMySQLToSQLite: () => ipcRenderer.invoke('sync-mysql-to-sqlite'),
   exportData: (filePath) => ipcRenderer.invoke('export-data', filePath),
   importData: (filePath) => ipcRenderer.invoke('import-data', filePath),
+  saveWinSCPPath: (winscpPath) => ipcRenderer.invoke('save-winscp-path', winscpPath),
+  openInWinSCP: (conn) => ipcRenderer.invoke('open-in-winscp', conn),
   showSaveDialog: (opts) => ipcRenderer.invoke('show-save-dialog', opts),
   showOpenDialog: (opts) => ipcRenderer.invoke('show-open-dialog', opts),
   getEncryptKeyStatus: () => ipcRenderer.invoke('get-encrypt-key-status'),

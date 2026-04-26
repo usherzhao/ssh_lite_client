@@ -15,11 +15,23 @@ function loadScript(src) {
 }
 
 const BASE = '../node_modules';
-Promise.all([
-  loadScript(`${BASE}/xterm/lib/xterm.js`),
-  loadScript(`${BASE}/xterm-addon-fit/lib/xterm-addon-fit.js`),
-  loadScript(`${BASE}/xterm-addon-web-links/lib/xterm-addon-web-links.js`)
-]).then(() => App.init()).catch(() => App.init(true));
+function loadXtermAssets() {
+  return Promise.all([
+    loadScript(`${BASE}/xterm/lib/xterm.js`),
+    loadScript(`${BASE}/xterm-addon-fit/lib/xterm-addon-fit.js`),
+    loadScript(`${BASE}/xterm-addon-web-links/lib/xterm-addon-web-links.js`)
+  ]);
+}
+
+function runWhenIdle(callback, timeout = 300) {
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(() => callback(), { timeout });
+    return;
+  }
+  setTimeout(callback, 0);
+}
+
+document.addEventListener('DOMContentLoaded', () => App.init());
 
 // ===== 全局状态 =====
 const App = {
@@ -41,6 +53,9 @@ const App = {
   cmdHistoryIndex: -1,
   collapsedGroups: new Set(),
   connSortMode: 'custom',  // custom | name | host | time
+  xtermLoadPromise: null,
+  sftpUiInitialized: false,
+  deferredEventsInitialized: false,
 
   // 终端外观设置（持久化到 localStorage）
   termSettings: {
@@ -50,23 +65,23 @@ const App = {
     encoding: 'utf-8'
   },
 
-  async init(fallback = false) {
-    this.xtermAvailable = !fallback && typeof Terminal !== 'undefined';
+  async init() {
+    this.xtermAvailable = typeof Terminal !== 'undefined';
     this.loadTermSettings();
     this.collapsedGroups = new Set(JSON.parse(localStorage.getItem('collapsedGroups') || '[]'));
-    await Promise.all([
-      this.loadConnections(),
-      this.loadQuickCommands()
-    ]);
-    this.bindEvents();
+    this.bindCoreEvents();
     this.renderSidebar();
     this.renderQuickCommands();
-    this.sftpInitResize();
-    this.sftpInitDragDrop();
     // 检测子窗口初始化
     window.sshAPI.onInitTerminal((data) => {
       if (data && data.config) this.openConnection(data.config);
     });
+
+    runWhenIdle(() => this.bindDeferredEvents());
+
+    await this.loadConnections();
+    this.renderSidebar();
+    this.loadQuickCommands().then(() => this.renderQuickCommands());
   },
 
   // ===== 数据加载 =====
@@ -81,6 +96,34 @@ const App = {
 
   async loadQuickCommands() {
     this.quickCommands = await window.sshAPI.getQuickCommands();
+  },
+
+  async ensureXtermLoaded() {
+    if (this.xtermAvailable && typeof Terminal !== 'undefined' && typeof FitAddon !== 'undefined') {
+      return true;
+    }
+    if (!this.xtermLoadPromise) {
+      this.xtermLoadPromise = loadXtermAssets()
+        .then(() => {
+          this.xtermAvailable = typeof Terminal !== 'undefined';
+          return this.xtermAvailable;
+        })
+        .catch(() => {
+          this.xtermAvailable = false;
+          return false;
+        })
+        .finally(() => {
+          this.xtermLoadPromise = null;
+        });
+    }
+    return this.xtermLoadPromise;
+  },
+
+  ensureSftpUiInitialized() {
+    if (this.sftpUiInitialized) return;
+    this.sftpInitResize();
+    this.sftpInitDragDrop();
+    this.sftpUiInitialized = true;
   },
 
   // ===== 侧边栏渲染 =====
@@ -157,8 +200,9 @@ const App = {
               <div class="conn-item-host">${escapeHtml(conn.username)}@${escapeHtml(conn.host)}:${conn.port || 22}</div>
             </div>
             <div class="conn-item-actions">
-              <button class="btn-icon" title="编辑"><svg class="svg-icon"><use href="#icon-edit"/></svg></button>
-              <button class="btn-icon" title="删除"><svg class="svg-icon"><use href="#icon-trash"/></svg></button>
+              <button class="btn-icon" data-action="winscp" title="WinSCP 打开"><svg class="svg-icon"><use href="#icon-link"/></svg></button>
+              <button class="btn-icon" data-action="edit" title="编辑"><svg class="svg-icon"><use href="#icon-edit"/></svg></button>
+              <button class="btn-icon" data-action="delete" title="删除"><svg class="svg-icon"><use href="#icon-trash"/></svg></button>
             </div>
           `;
           item.addEventListener('click', (e) => {
@@ -169,9 +213,18 @@ const App = {
             e.preventDefault();
             this.showContextMenu(e, conn);
           });
-          const btns = item.querySelectorAll('.btn-icon');
-          btns[0].addEventListener('click', () => this.openEditModal(conn));
-          btns[1].addEventListener('click', () => this.deleteConnection(conn.id));
+          item.querySelector('[data-action="winscp"]').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.openConnectionInWinSCP(conn);
+          });
+          item.querySelector('[data-action="edit"]').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.openEditModal(conn);
+          });
+          item.querySelector('[data-action="delete"]').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.deleteConnection(conn.id);
+          });
 
           // 拖拽排序（仅 custom 模式）
           if (this.connSortMode === 'custom') {
@@ -271,28 +324,27 @@ const App = {
     this.renderTabs();
     this.renderTerminalArea();
     if (this.cmdInputVisible) this.updateCmdTargetLabel();
+    const panel = document.getElementById('sftp-panel');
+    if (!panel || panel.style.display === 'none') return;
     // 切换 SFTP 面板到对应 tab
     const tab = this.tabs.find(t => t.id === tabId);
-    if (tab && tab.connected) {
-      const panel = document.getElementById('sftp-panel');
-      if (this.sftp.sessionId !== tab.sessionId) {
-        this.sftp.sessionId = tab.sessionId;
-        this.sftp.connName = tab.config.name || tab.config.host;
-        document.getElementById('sftp-host-label').textContent = this.sftp.connName;
-        panel.style.display = 'flex';
-        // 恢复此 tab 保存的路径，或使用根路径
-        const savedPath = tab._sftpPath || '/';
-        this.sftp.currentPath = savedPath;
-        this.sftp.history = [];
-        window.sshAPI.sftpList(tab.sessionId, savedPath).then(r => {
-          if (r.success) {
-            document.getElementById('sftp-path-input').value = savedPath;
-            this.sftpRenderList(r.list);
-          } else {
-            this.sftpAutoConnect(tab);
-          }
-        });
-      }
+    if (tab && tab.connected && this.sftp.sessionId !== tab.sessionId) {
+      this.ensureSftpUiInitialized();
+      this.sftp.sessionId = tab.sessionId;
+      this.sftp.connName = tab.config.name || tab.config.host;
+      document.getElementById('sftp-host-label').textContent = this.sftp.connName;
+      // 恢复此 tab 保存的路径，或使用根路径
+      const savedPath = tab._sftpPath || '/';
+      this.sftp.currentPath = savedPath;
+      this.sftp.history = [];
+      window.sshAPI.sftpList(tab.sessionId, savedPath).then(r => {
+        if (r.success) {
+          document.getElementById('sftp-path-input').value = savedPath;
+          this.sftpRenderList(r.list);
+        } else {
+          this.sftpAutoConnect(tab);
+        }
+      });
     }
   },
 
@@ -399,6 +451,8 @@ const App = {
       return;
     }
 
+    await this.ensureXtermLoaded();
+
     const tab = this.createTab(conn);
     this.renderTerminalArea();
 
@@ -432,6 +486,7 @@ const App = {
     this.renderSidebar();
     this.renderTabs();
     this.attachTerminal(tab);
+    this.preloadSftpForTab(tab);
     // SSH 连接成功后，执行「登录后执行」命令
     if (conn.initCommands) {
       const lines = conn.initCommands.split('\n').map(l => l.trim()).filter(Boolean);
@@ -442,8 +497,16 @@ const App = {
         }, 600);
       }
     }
-    // SSH 连接成功后，自动初始化 SFTP
-    this.sftpAutoConnect(tab);
+  },
+
+  preloadSftpForTab(tab) {
+    setTimeout(() => {
+      if (!tab.connected || this.activeTabId !== tab.id) return;
+      const panel = document.getElementById('sftp-panel');
+      if (panel && panel.style.display !== 'none') {
+        this.sftpAutoConnect(tab);
+      }
+    }, 300);
   },
 
   attachTerminal(tab) {
@@ -825,6 +888,7 @@ const App = {
   },
 
   openQuickCmdModal(cmd = null) {
+    this.bindDeferredEvents();
     this.currentEditQcmdId = cmd ? cmd.id : null;
     document.getElementById('quick-cmd-modal-title').textContent = cmd ? '编辑快捷指令' : '新建快捷指令';
     document.getElementById('qcmd-name').value = cmd ? cmd.name : '';
@@ -870,6 +934,7 @@ const App = {
 
   // ===== 连接管理弹窗 =====
   openNewConnModal() {
+    this.bindDeferredEvents();
     this.currentEditId = null;
     document.getElementById('modal-title').textContent = '新建 SSH 连接';
     document.getElementById('conn-name').value = '';
@@ -894,6 +959,7 @@ const App = {
   },
 
   openEditModal(conn) {
+    this.bindDeferredEvents();
     this.currentEditId = conn.id;
     document.getElementById('modal-title').textContent = '编辑连接';
     document.getElementById('conn-name').value = conn.name || '';
@@ -1026,6 +1092,7 @@ const App = {
 
   // ===== 管理弹窗 =====
   openManageModal() {
+    this.bindDeferredEvents();
     document.getElementById('manage-overlay').style.display = 'flex';
     this.renderManageTable();
   },
@@ -1045,6 +1112,7 @@ const App = {
         <td>
           <div class="actions-cell">
             <button class="btn-sm" data-action="connect">连接</button>
+            <button class="btn-sm" data-action="winscp">WinSCP</button>
             <button class="btn-sm" data-action="edit">编辑</button>
             <button class="btn-sm btn-danger" data-action="delete">删除</button>
           </div>
@@ -1054,6 +1122,7 @@ const App = {
         document.getElementById('manage-overlay').style.display = 'none';
         this.openConnection(conn);
       });
+      tr.querySelector('[data-action="winscp"]').addEventListener('click', () => this.openConnectionInWinSCP(conn));
       tr.querySelector('[data-action="edit"]').addEventListener('click', () => {
         document.getElementById('manage-overlay').style.display = 'none';
         this.openEditModal(conn);
@@ -1068,14 +1137,17 @@ const App = {
 
   // ===== 数据库设置弹窗 =====
   async openDbSettings() {
+    this.bindDeferredEvents();
     const cfg = await window.sshAPI.getDbConfig();
     document.getElementById('db-current-type').textContent = cfg.dbType === 'mysql' ? 'MySQL' : 'SQLite（本地）';
     const mysqlAddr = cfg.mysqlConfig ? `${cfg.mysqlConfig.host}:${cfg.mysqlConfig.port || 3306}/${cfg.mysqlConfig.database}` : '';
     document.getElementById('db-mysql-addr').textContent = mysqlAddr;
+    document.getElementById('winscp-path').value = cfg.winscpPath || '';
     document.getElementById('mysql-config-area').style.display = 'none';
     document.getElementById('mysql-status').textContent = '';
     document.getElementById('sync-status').textContent = '';
     document.getElementById('io-status').textContent = '';
+    document.getElementById('winscp-status').textContent = '';
     if (cfg.mysqlConfig) {
       document.getElementById('mysql-host').value = cfg.mysqlConfig.host || 'localhost';
       document.getElementById('mysql-port').value = cfg.mysqlConfig.port || 3306;
@@ -1129,6 +1201,63 @@ const App = {
     el.className = 'conn-status ' + (type || '');
   },
 
+  setWinSCPStatus(msg, type) {
+    const el = document.getElementById('winscp-status');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'conn-status ' + (type || '');
+  },
+
+  getActiveConnectedTab() {
+    return this.tabs.find(t => t.id === this.activeTabId && t.connected) || null;
+  },
+
+  async browseWinSCPPath() {
+    const result = await window.sshAPI.showOpenDialog({
+      title: '选择 WinSCP',
+      properties: ['openFile'],
+      filters: [
+        { name: 'WinSCP', extensions: ['exe'] },
+        { name: '所有文件', extensions: ['*'] }
+      ]
+    });
+    if (result.canceled || !result.filePaths || result.filePaths.length === 0) return;
+    document.getElementById('winscp-path').value = result.filePaths[0];
+  },
+
+  async saveWinSCPPath() {
+    const winscpPath = document.getElementById('winscp-path').value.trim();
+    const result = await window.sshAPI.saveWinSCPPath(winscpPath);
+    if (result.success) {
+      this.setWinSCPStatus('✓ WinSCP 路径已保存', 'success');
+    } else {
+      this.setWinSCPStatus('✗ ' + (result.error || '保存失败'), 'error');
+    }
+  },
+
+  async openConnectionInWinSCP(conn) {
+    if (!conn) {
+      this.setWinSCPStatus('连接信息不存在', 'error');
+      return;
+    }
+    this.setWinSCPStatus('正在打开 WinSCP...', 'info');
+    const result = await window.sshAPI.openInWinSCP(conn);
+    if (result.success) {
+      this.setWinSCPStatus('✓ 已使用 WinSCP 打开 SFTP 连接', 'success');
+    } else {
+      this.setWinSCPStatus('✗ ' + (result.error || '打开失败'), 'error');
+    }
+  },
+
+  async openCurrentConnectionInWinSCP() {
+    const tab = this.getActiveConnectedTab();
+    if (!tab) {
+      this.setWinSCPStatus('请先连接到一个服务器', 'error');
+      return;
+    }
+    await this.openConnectionInWinSCP(tab.config);
+  },
+
   // ===== 右键菜单 =====
   showContextMenu(e, conn) {
     this.closeContextMenu();
@@ -1136,14 +1265,16 @@ const App = {
     menu.className = 'context-menu';
     menu.innerHTML = `
       <div class="context-menu-item" data-action="connect"><svg class="svg-icon svg-icon-sm"><use href="#icon-send"/></svg> 连接</div>
+      <div class="context-menu-item" data-action="winscp"><svg class="svg-icon svg-icon-sm"><use href="#icon-link"/></svg> 用 WinSCP 打开</div>
       <div class="context-menu-item" data-action="new-win"><svg class="svg-icon svg-icon-sm"><use href="#icon-window"/></svg> 新窗口打开</div>
       <div class="context-menu-sep"></div>
       <div class="context-menu-item" data-action="edit"><svg class="svg-icon svg-icon-sm"><use href="#icon-edit"/></svg> 编辑</div>
       <div class="context-menu-item danger" data-action="delete"><svg class="svg-icon svg-icon-sm"><use href="#icon-trash"/></svg> 删除</div>
     `;
     menu.style.left = Math.min(e.clientX, window.innerWidth - 170) + 'px';
-    menu.style.top = Math.min(e.clientY, window.innerHeight - 150) + 'px';
+    menu.style.top = Math.min(e.clientY, window.innerHeight - 180) + 'px';
     menu.querySelector('[data-action="connect"]').addEventListener('click', () => { this.openConnection(conn); this.closeContextMenu(); });
+    menu.querySelector('[data-action="winscp"]').addEventListener('click', () => { this.openConnectionInWinSCP(conn); this.closeContextMenu(); });
     menu.querySelector('[data-action="new-win"]').addEventListener('click', () => { this.openNewWindow(); this.closeContextMenu(); });
     menu.querySelector('[data-action="edit"]').addEventListener('click', () => { this.openEditModal(conn); this.closeContextMenu(); });
     menu.querySelector('[data-action="delete"]').addEventListener('click', () => { this.deleteConnection(conn.id); this.closeContextMenu(); });
@@ -1196,6 +1327,7 @@ const App = {
   },
 
   openTermSettings() {
+    this.bindDeferredEvents();
     const s = this.termSettings;
     // 字体下拉
     const fontSel = document.getElementById('term-font-family');
@@ -1270,13 +1402,14 @@ const App = {
   },
 
   async sftpAutoConnect(tab) {
+    this.ensureSftpUiInitialized();
     // 延迟 300ms 等待 SSH shell 稳定后再开 SFTP 子通道
     await new Promise(r => setTimeout(r, 300));
     const panel = document.getElementById('sftp-panel');
     panel.style.display = 'flex';
     this.sftp.sessionId = tab.sessionId;
     this.sftp.connName = tab.config.name || tab.config.host;
-    this.sftp.currentPath = '/';
+    this.sftp.currentPath = tab._sftpPath || '/';
     this.sftp.history = [];
     document.getElementById('sftp-host-label').textContent = this.sftp.connName;
     this.sftpShowLoading(true);
@@ -1293,8 +1426,7 @@ const App = {
       this.sftpSyncPath(tab._pendingCdCommand);
       delete tab._pendingCdCommand;
     } else {
-      // 初始化成功，加载根目录
-      await this.sftpNavigateTo('/');
+      await this.sftpNavigateTo(this.sftp.currentPath || '/');
     }
   },
 
@@ -1694,6 +1826,35 @@ const App = {
     };
   },
 
+  async toggleSftpPanel() {
+    this.bindDeferredEvents();
+    const panel = document.getElementById('sftp-panel');
+    if (!panel) return;
+    if (panel.style.display !== 'none') {
+      this.sftpClose();
+      return;
+    }
+
+    this.ensureSftpUiInitialized();
+    panel.style.display = 'flex';
+
+    const tab = this.tabs.find(t => t.id === this.activeTabId && t.connected);
+    if (!tab) return;
+
+    this.sftp.connName = tab.config.name || tab.config.host;
+    document.getElementById('sftp-host-label').textContent = this.sftp.connName;
+
+    if (this.sftp.sessionId === tab.sessionId) {
+      const savedPath = tab._sftpPath || this.sftp.currentPath || '/';
+      this.sftp.currentPath = savedPath;
+      this.sftp.history = [];
+      await this.sftpNavigateTo(savedPath);
+      return;
+    }
+
+    await this.sftpAutoConnect(tab);
+  },
+
   sftpClose() {
     const panel = document.getElementById('sftp-panel');
     panel.style.display = 'none';
@@ -2062,17 +2223,41 @@ const App = {
   },
 
   // ===== 事件绑定 =====
-  bindEvents() {
-    // 标题栏窗口控制
+  bindCoreEvents() {
     document.getElementById('btn-minimize').addEventListener('click', () => window.sshAPI.winMinimize());
     document.getElementById('btn-maximize').addEventListener('click', () => window.sshAPI.winMaximize());
     document.getElementById('btn-close').addEventListener('click', () => window.sshAPI.winClose());
-
-    // 新建连接
     document.getElementById('btn-new-conn').addEventListener('click', () => this.openNewConnModal());
     document.getElementById('btn-welcome-new').addEventListener('click', () => this.openNewConnModal());
+    document.getElementById('search-input').addEventListener('input', () => this.renderSidebar());
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.connSortMode = btn.dataset.sort;
+        document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.renderSidebar();
+      });
+    });
+    document.getElementById('btn-add-tab').addEventListener('click', () => this.openNewConnModal());
+    document.getElementById('btn-split-h').addEventListener('click', () => this.toggleSplit());
+    document.getElementById('btn-multi-win').addEventListener('click', () => this.openNewWindow());
+    document.getElementById('btn-term-settings').addEventListener('click', () => this.openTermSettings());
+    document.getElementById('btn-cmd-input').addEventListener('click', () => this.toggleCmdInputPanel());
+    document.getElementById('btn-tb-sftp').addEventListener('click', () => this.toggleSftpPanel());
+    document.getElementById('btn-tb-cmd').addEventListener('click', () => this.toggleCmdInputPanel());
+    document.getElementById('btn-tb-quick-cmd').addEventListener('click', () => {
+      const bar = document.getElementById('quick-cmd-bar');
+      if (bar) bar.style.display = bar.style.display === 'none' ? '' : 'none';
+    });
+    document.getElementById('btn-tb-settings').addEventListener('click', () => this.openDbSettings());
     document.getElementById('btn-manage').addEventListener('click', () => this.openManageModal());
-    document.getElementById('btn-db-settings').addEventListener('click', () => this.openDbSettings());
+    const dbBtn = document.getElementById('btn-db-settings');
+    if (dbBtn) dbBtn.addEventListener('click', () => this.openDbSettings());
+  },
+
+  bindDeferredEvents() {
+    if (this.deferredEventsInitialized) return;
+    this.deferredEventsInitialized = true;
 
     // 连接弹窗
     document.getElementById('modal-close').addEventListener('click', () => { document.getElementById('modal-overlay').style.display = 'none'; });
@@ -2124,44 +2309,6 @@ const App = {
       if (e.target.id === 'add-group-overlay') document.getElementById('add-group-overlay').style.display = 'none';
     });
 
-    // 搜索
-    document.getElementById('search-input').addEventListener('input', () => this.renderSidebar());
-
-    // 排序按钮
-    document.querySelectorAll('.sort-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.connSortMode = btn.dataset.sort;
-        document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this.renderSidebar();
-      });
-    });
-
-    // 标签栏按钮
-    document.getElementById('btn-add-tab').addEventListener('click', () => this.openNewConnModal());
-    document.getElementById('btn-split-h').addEventListener('click', () => this.toggleSplit());
-    document.getElementById('btn-multi-win').addEventListener('click', () => this.openNewWindow());
-    document.getElementById('btn-term-settings').addEventListener('click', () => this.openTermSettings());
-    document.getElementById('btn-cmd-input').addEventListener('click', () => this.toggleCmdInputPanel());
-
-    // 工具栏事件
-    document.getElementById('btn-tb-sftp').addEventListener('click', () => {
-      const panel = document.getElementById('sftp-panel');
-      if (panel.style.display === 'none') {
-        panel.style.display = '';
-      } else {
-        panel.style.display = 'none';
-      }
-    });
-    document.getElementById('btn-tb-cmd').addEventListener('click', () => this.toggleCmdInputPanel());
-    document.getElementById('btn-tb-quick-cmd').addEventListener('click', () => {
-      const bar = document.getElementById('quick-cmd-bar');
-      if (bar) bar.style.display = bar.style.display === 'none' ? '' : 'none';
-    });
-    document.getElementById('btn-tb-settings').addEventListener('click', () => {
-      document.getElementById('db-modal').style.display = '';
-    });
-
     // 指令发送窗口事件
     document.getElementById('btn-cmd-send').addEventListener('click', () => this.sendCmdInput());
     document.getElementById('btn-cmd-clear').addEventListener('click', () => {
@@ -2209,6 +2356,9 @@ const App = {
 
     // 数据库设置弹窗
     document.getElementById('db-modal-close').addEventListener('click', () => { document.getElementById('db-overlay').style.display = 'none'; });
+    document.getElementById('btn-browse-winscp').addEventListener('click', () => this.browseWinSCPPath());
+    document.getElementById('btn-save-winscp').addEventListener('click', () => this.saveWinSCPPath());
+    document.getElementById('btn-open-current-winscp').addEventListener('click', () => this.openCurrentConnectionInWinSCP());
 
     document.getElementById('btn-use-sqlite').addEventListener('click', async () => {
       const r = window.sshAPI.switchSQLite();
