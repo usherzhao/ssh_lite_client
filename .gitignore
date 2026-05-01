@@ -1,3 +1,6 @@
 dist/
 node_modules/
 ssh-client-backup.json
+src-tauri/target/
+src-tauri/gen/
+.local-tools/

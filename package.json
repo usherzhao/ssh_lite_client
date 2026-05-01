@@ -7,7 +7,10 @@
     "start": "electron .",
     "build": "electron-builder --win --x64",
     "build:dir": "electron-builder --win --x64 --dir",
-    "pack": "electron-builder --dir --config.compression=store"
+    "pack": "electron-builder --dir --config.compression=store",
+    "renderer:dev": "node -e \"const http=require('http'),fs=require('fs'),path=require('path');const roots=[path.join(process.cwd(),'renderer'),path.join(process.cwd(),'..','renderer')];const root=roots.find(p=>fs.existsSync(path.join(p,'index.html')));const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.ico':'image/x-icon'};if(!root)throw new Error('renderer directory not found');http.createServer((req,res)=>{let pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);if(pathname==='/')pathname='/index.html';const file=path.normalize(path.join(root,pathname));if(!file.startsWith(root)){res.writeHead(403);res.end('Forbidden');return;}fs.readFile(file,(err,data)=>{if(err){res.writeHead(404);res.end('Not found');return;}res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream'});res.end(data);});}).listen(1420,'127.0.0.1',()=>console.log('renderer dev server http://localhost:1420'))\"",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "build": {
     "appId": "com.sshclient.app",
@@ -67,6 +70,7 @@
     "xterm-addon-web-links": "^0.9.0"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.10.3",
     "electron": "^27.3.11",
     "electron-builder": "^26.8.1"
   },

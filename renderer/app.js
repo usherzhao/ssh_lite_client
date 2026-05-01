@@ -14,12 +14,12 @@ function loadScript(src) {
   });
 }
 
-const BASE = '../node_modules';
+const BASE = './vendor/xterm';
 function loadXtermAssets() {
   return Promise.all([
-    loadScript(`${BASE}/xterm/lib/xterm.js`),
-    loadScript(`${BASE}/xterm-addon-fit/lib/xterm-addon-fit.js`),
-    loadScript(`${BASE}/xterm-addon-web-links/lib/xterm-addon-web-links.js`)
+    loadScript(`${BASE}/xterm.js`),
+    loadScript(`${BASE}/xterm-addon-fit.js`),
+    loadScript(`${BASE}/xterm-addon-web-links.js`)
   ]);
 }
 
@@ -328,23 +328,12 @@ const App = {
     if (!panel || panel.style.display === 'none') return;
     // 切换 SFTP 面板到对应 tab
     const tab = this.tabs.find(t => t.id === tabId);
-    if (tab && tab.connected && this.sftp.sessionId !== tab.sessionId) {
-      this.ensureSftpUiInitialized();
-      this.sftp.sessionId = tab.sessionId;
-      this.sftp.connName = tab.config.name || tab.config.host;
-      document.getElementById('sftp-host-label').textContent = this.sftp.connName;
-      // 恢复此 tab 保存的路径，或使用根路径
-      const savedPath = tab._sftpPath || '/';
-      this.sftp.currentPath = savedPath;
-      this.sftp.history = [];
-      window.sshAPI.sftpList(tab.sessionId, savedPath).then(r => {
-        if (r.success) {
-          document.getElementById('sftp-path-input').value = savedPath;
-          this.sftpRenderList(r.list);
-        } else {
-          this.sftpAutoConnect(tab);
-        }
-      });
+    if (!tab || !tab.connected) {
+      this.sftpClose();
+      return;
+    }
+    if (this.sftp.sessionId !== tab.sessionId) {
+      this.sftpAutoConnect(tab);
     }
   },
 
@@ -800,10 +789,9 @@ const App = {
         if (line.startsWith('cd ')) {
           const path = line.substring(3).trim();
           if (path) {
-            this.sftpSyncPath(path);
-            
-            // 如果 SFTP 未连接，缓存 cd 命令
-            if (!this.sftp.sessionId) {
+            if (this.sftp.sessionId === tab.sessionId) {
+              this.sftpSyncPath(path, tab.sessionId);
+            } else {
               tab._pendingCdCommand = path;
             }
           }
@@ -1397,14 +1385,14 @@ const App = {
     contextMenu: null,
     selectedItem: null,  // 右键选中项
     cutItem: null,       // 剪切项
+    requestToken: 0,
     _resizing: false,
     tasks: []            // 传输任务列表
   },
 
   async sftpAutoConnect(tab) {
     this.ensureSftpUiInitialized();
-    // 延迟 300ms 等待 SSH shell 稳定后再开 SFTP 子通道
-    await new Promise(r => setTimeout(r, 300));
+    const token = ++this.sftp.requestToken;
     const panel = document.getElementById('sftp-panel');
     panel.style.display = 'flex';
     this.sftp.sessionId = tab.sessionId;
@@ -1412,9 +1400,14 @@ const App = {
     this.sftp.currentPath = tab._sftpPath || '/';
     this.sftp.history = [];
     document.getElementById('sftp-host-label').textContent = this.sftp.connName;
+    const pathInput = document.getElementById('sftp-path-input');
+    if (pathInput) pathInput.value = this.sftp.currentPath;
     this.sftpShowLoading(true);
+    await new Promise(r => setTimeout(r, 300));
+    if (this.activeTabId !== tab.id || this.sftp.requestToken !== token) return;
 
     const r = await window.sshAPI.sftpConnect(tab.sessionId);
+    if (this.sftp.sessionId !== tab.sessionId || this.sftp.requestToken !== token) return;
     this.sftpShowLoading(false);
     if (!r.success) {
       this.sftpShowError('SFTP 连接失败：' + r.error);
@@ -1423,10 +1416,10 @@ const App = {
     
     // 检查是否有缓存的 cd 命令
     if (tab._pendingCdCommand) {
-      this.sftpSyncPath(tab._pendingCdCommand);
+      this.sftpSyncPath(tab._pendingCdCommand, tab.sessionId);
       delete tab._pendingCdCommand;
     } else {
-      await this.sftpNavigateTo(this.sftp.currentPath || '/');
+      await this.sftpNavigateTo(this.sftp.currentPath || '/', { sessionId: tab.sessionId });
     }
   },
 
@@ -1443,10 +1436,13 @@ const App = {
     document.getElementById('sftp-loading').style.display = 'none';
   },
 
-  async sftpNavigateTo(path) {
-    if (!this.sftp.sessionId) return;
+  async sftpNavigateTo(path, options = {}) {
+    const sessionId = options.sessionId || this.sftp.sessionId;
+    if (!sessionId) return;
+    const token = ++this.sftp.requestToken;
     this.sftpShowLoading(true);
-    const r = await window.sshAPI.sftpList(this.sftp.sessionId, path);
+    const r = await window.sshAPI.sftpList(sessionId, path);
+    if (this.sftp.sessionId !== sessionId || this.sftp.requestToken !== token) return;
     this.sftpShowLoading(false);
     if (!r.success) {
       this.sftpShowError('无法读取目录：' + r.error);
@@ -1456,10 +1452,8 @@ const App = {
       this.sftp.history.push(this.sftp.currentPath);
     }
     this.sftp.currentPath = path;
-    // 同步保存到当前 tab
-    const activeTab = this.tabs.find(t => t.id === this.activeTabId);
-    if (activeTab) activeTab._sftpPath = path;
-    // 更新路径输入框
+    const sessionTab = this.tabs.find(t => t.sessionId === sessionId);
+    if (sessionTab) sessionTab._sftpPath = path;
     const pathInput = document.getElementById('sftp-path-input');
     if (pathInput) {
       pathInput.value = path;
@@ -1858,6 +1852,7 @@ const App = {
   sftpClose() {
     const panel = document.getElementById('sftp-panel');
     panel.style.display = 'none';
+    this.sftp.requestToken++;
     if (this.sftp.sessionId) {
       window.sshAPI.sftpDisconnect(this.sftp.sessionId);
       this.sftp.sessionId = null;
@@ -1911,14 +1906,16 @@ const App = {
   },
   
   // 同步终端 cd 命令到 SFTP 目录
-  sftpSyncPath(path) {
-    if (!this.sftp.sessionId) return;
+  sftpSyncPath(path, sessionId = this.sftp.sessionId) {
+    if (!sessionId || this.sftp.sessionId !== sessionId) return;
     
     let targetPath = path;
     // 处理相对路径
     if (!path.startsWith('/')) {
       // 解析路径，处理 .. 和 .
-      const parts = this.sftp.currentPath.split('/').filter(p => p);
+      const sessionTab = this.tabs.find(t => t.sessionId === sessionId);
+      const basePath = sessionTab?._sftpPath || this.sftp.currentPath || '/';
+      const parts = basePath.split('/').filter(p => p);
       const pathParts = path.split('/');
       
       for (const part of pathParts) {
@@ -1938,7 +1935,7 @@ const App = {
     }
     
     // 尝试同步到新路径
-    this.sftpNavigateTo(targetPath).catch(err => {
+    this.sftpNavigateTo(targetPath, { sessionId }).catch(err => {
       // 忽略权限错误
       console.log('SFTP 路径同步失败（可能权限不足）:', err);
     });
@@ -2361,7 +2358,11 @@ const App = {
     document.getElementById('btn-open-current-winscp').addEventListener('click', () => this.openCurrentConnectionInWinSCP());
 
     document.getElementById('btn-use-sqlite').addEventListener('click', async () => {
-      const r = window.sshAPI.switchSQLite();
+      const r = await window.sshAPI.switchSQLite();
+      if (!r.success) {
+        this.setMysqlStatus('✗ ' + r.error, 'error');
+        return;
+      }
       document.getElementById('db-current-type').textContent = 'SQLite（本地）';
       document.getElementById('db-mysql-addr').textContent = '';
       document.getElementById('mysql-config-area').style.display = 'none';

@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SSH Client</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="../node_modules/xterm/css/xterm.css" />
+  <link rel="stylesheet" href="./vendor/xterm/xterm.css" />
+  <script src="tauri-compat.js"></script>
 </head>
 <body>
   <!-- SVG 图标精灵 -->
@@ -45,8 +46,8 @@
   </svg>
 
   <!-- 自定义标题栏（可拖动） -->
-  <div class="titlebar" id="titlebar">
-    <div class="titlebar-drag">
+  <div class="titlebar" id="titlebar" data-tauri-drag-region>
+    <div class="titlebar-drag" data-tauri-drag-region>
       <span class="app-logo-title"><svg class="svg-icon" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"><use href="#icon-bolt"/></svg>SSH Client</span>
     </div>
     <div class="titlebar-btns">
